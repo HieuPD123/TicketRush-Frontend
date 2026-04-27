@@ -1,16 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  /* Electric Emerald (dark) design tokens */
-  --background: #0b0f14;
-  --foreground: #eaf2ff;
-  --surface: #101722;
-  --surface-2: #141d2a;
-  --muted: #9aa4b2;
+  /* Midnight Pulse design tokens */
+  --background: #0e0e15;
+  --foreground: #f5f3ff;
+
+  --surface: #12121c;
+  --surface-2: #171726;
+  --muted: #bdb8cf;
   --border: color-mix(in srgb, var(--foreground) 12%, transparent);
 
-  --primary: #00ff88;
-  --secondary: #00d4ff;
+  --primary: #7c3aed;
+  --secondary: #60a5fa;
 }
 
 @theme inline {
@@ -22,12 +23,47 @@
   --color-border: var(--border);
   --color-primary: var(--primary);
   --color-secondary: var(--secondary);
-  --font-sans: var(--font-plus-jakarta-sans);
-  --font-mono: var(--font-geist-mono);
+
+  --font-sans: var(--font-be-vietnam-pro);
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--primary) 35%, transparent);
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--foreground) 8%, transparent);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--foreground) 12%, transparent),
+    transparent
+  );
+  animation: skeleton-shimmer 1.35s infinite;
 }

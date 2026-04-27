@@ -1,22 +1,19 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { Be_Vietnam_Pro } from "next/font/google";
+
+import Providers from "@/app/providers";
+
 import "./globals.css";
 
-import Navbar from "@/components/homepage/navbar/navbar";
-
-const plusJakartaSans = Plus_Jakarta_Sans({
-  variable: "--font-plus-jakarta-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const beVietnamPro = Be_Vietnam_Pro({
+  variable: "--font-be-vietnam-pro",
+  subsets: ["latin", "vietnamese"],
+  weight: ["300", "400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
-  title: "Ticket Rush",
-  description: "Nền tảng đặt vé online hàng đầu cho các sự kiện và địa điểm.",
+  title: "TicketRush",
+  description: "Nền tảng đặt vé online hàng đầu cho sự kiện và địa điểm.",
 };
 
 export default function RootLayout({
@@ -25,13 +22,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${plusJakartaSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
-        <Navbar />
-        {children}
+    <html lang="vi" className={`${beVietnamPro.variable} antialiased`}>
+      <body className="min-h-dvh bg-background text-foreground font-sans">
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

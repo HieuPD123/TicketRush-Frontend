@@ -16,7 +16,23 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project structure (feature-based)
+
+- `app/`: routing + layouts (Next.js App Router)
+- `features/`: feature modules (UI + hooks + services + types per feature)
+- `components/`: shared UI components (cross-feature)
+
+## Backend API (Spring Boot)
+
+This project is frontend-only and calls the Spring Boot backend directly.
+
+Create a `.env.local` file and set:
+
+```bash
+NEXT_PUBLIC_TRENDING_EVENTS_URL=http://localhost:8080/api/events/trending
+NEXT_PUBLIC_AUTH_REGISTER_URL=http://localhost:8080/api/auth/register
+```
+
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 

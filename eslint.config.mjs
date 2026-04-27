@@ -13,6 +13,15 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+
+  // NOTE: React 19 + current eslint-config-next emits false positives for
+  // react-hooks/refs in common patterns (e.g. objects returned from custom hooks).
+  // Keep it off until the upstream rule is fixed.
+  {
+    rules: {
+      "react-hooks/refs": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;
