@@ -1,96 +1,66 @@
-export type MyInfo = {
+export type Info = {
   id: number;
   email: string;
   fullName: string;
-  phone?: string | null;
   dateOfBirth: string;
-  gender: "MALE" | "FEMALE" | "OTHER" | string;
-  role: "CUSTOMER" | "ADMIN" | string;
+  gender: "MALE" | "FEMALE" | "OTHER";
+  role: "CUSTOMER" | "ADMIN";
+  avatarUrl: string | null;
   createdAt: string;
 };
 
-type ApiResponse<T> = {
-  code?: number | string;
-  message?: string;
-  result?: T;
+type ApiResponse = {
+  code: number;
+  message: string;
+  result: Info;
 };
 
-export type GetMyInfoResult =
-  | {
-      ok: true;
-      user: MyInfo;
-      code?: number | string;
-      message?: string;
-    }
-  | {
-      ok: false;
-      status?: number;
-      code?: number | string;
-      message?: string;
-    };
+export type GetMyInfoResult = {
+  ok: boolean;
+  message: string;
+  data: ApiResponse | null;
+};
 
 export async function getMyInfo(): Promise<GetMyInfoResult> {
-  const url = process.env.NEXT_PUBLIC_USER_PROFILE_URL ?? "/api/my-info";
+  const url = process.env.NEXT_PUBLIC_USER_PROFILE_URL;
+
+  if (!url) {
+    return {
+      ok: false,
+      message: "Không thể kết nối tới server. Vui lòng thử lại sau.",
+      data: null,
+    };
+  }
 
   try {
     const res = await fetch(url, {
       method: "GET",
       credentials: "include",
       headers: {
-        Accept: "application/json, text/plain, */*",
+        Accept: "*/*",
       },
-      cache: "no-store",
     });
 
     if (!res.ok) {
       return {
         ok: false,
-        status: res.status,
         message: "Không thể lấy thông tin người dùng",
+        data: null,
       };
     }
 
-    const contentType = res.headers.get("content-type") ?? "";
-    if (!contentType.includes("application/json")) {
-      return {
-        ok: false,
-        status: res.status,
-        message: "Phản hồi không hợp lệ",
-      };
-    }
-
-    const payload = (await res.json().catch(() => undefined)) as unknown;
-    if (!payload || typeof payload !== "object") {
-      return {
-        ok: false,
-        status: res.status,
-        message: "Phản hồi không hợp lệ",
-      };
-    }
-
-    const envelope = payload as ApiResponse<MyInfo>;
-    if (!envelope.result) {
-      return {
-        ok: false,
-        status: res.status,
-        code: envelope.code,
-        message:
-          typeof envelope.message === "string"
-            ? envelope.message
-            : "Không có thông tin người dùng",
-      };
-    }
+    const data: ApiResponse = await res.json();
 
     return {
       ok: true,
-      user: envelope.result,
-      code: envelope.code,
-      message: envelope.message,
+      message: data.message,
+      data: data,
     };
   } catch {
     return {
       ok: false,
       message: "Không thể kết nối tới server. Vui lòng thử lại sau.",
+      data: null,
     };
   }
 }

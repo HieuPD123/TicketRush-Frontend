@@ -2,16 +2,26 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { getMyInfo, type MyInfo } from "@/features/user/services/get-my-info";
+import { getMyInfo, type Info } from "@/features/user/services/get-my-info";
 
 export const MY_INFO_QUERY_KEY = ["my-info"] as const;
 
 export function useMyInfo() {
-  return useQuery<MyInfo | null>({
+  return useQuery<Info | null>({
     queryKey: MY_INFO_QUERY_KEY,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const result = await getMyInfo();
-      return result.ok ? result.user : null;
+
+      if (!result.ok) {
+        throw new Error(result.message);
+      }
+
+      return result.data!.result;
     },
   });
 }

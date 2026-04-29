@@ -50,8 +50,6 @@ export function useLoginCard() {
       const result = await loginAccount({ email, password });
 
       if (result.ok) {
-        // Keep showing the loading state until we can load my-info successfully,
-        // then seed the React Query cache so the NavBar updates immediately.
         const myInfoResult = await getMyInfo();
         if (!myInfoResult.ok) {
           setFeedback({
@@ -63,7 +61,7 @@ export function useLoginCard() {
           return;
         }
 
-        queryClient.setQueryData(MY_INFO_QUERY_KEY, myInfoResult.user);
+        queryClient.setQueryData(MY_INFO_QUERY_KEY, myInfoResult.data!.result);
 
         form.reset();
         setShowPassword(false);
@@ -77,8 +75,6 @@ export function useLoginCard() {
         message: result.message,
       });
 
-      // Keep email so the user doesn't need to retype it,
-      // but clear password for the next attempt.
       const passwordField = form.elements.namedItem("password");
       if (passwordField instanceof HTMLInputElement) {
         passwordField.value = "";

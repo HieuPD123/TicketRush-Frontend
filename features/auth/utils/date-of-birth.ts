@@ -1,20 +1,12 @@
-export function normalizeDateOfBirth(raw: string): string | null {
-  const value = raw.trim();
-  if (!value) return null;
+function isValidIsoDate(iso: string): boolean {
+  const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return false;
 
-  // yyyy-mm-dd
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return false;
 
-  // dd/mm/yyyy
-  const slashMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (!slashMatch) return null;
-
-  const day = slashMatch[1].padStart(2, "0");
-  const month = slashMatch[2].padStart(2, "0");
-  const year = slashMatch[3];
-
-  const iso = `${year}-${month}-${day}`;
-  return isValidIsoDate(iso) ? iso : null;
+  const normalized = date.toISOString().slice(0, 10);
+  return normalized === iso;
 }
 
 export function formatIsoToDobDisplay(iso: string): string {
@@ -24,7 +16,7 @@ export function formatIsoToDobDisplay(iso: string): string {
 }
 
 export function parseDobDisplayToIso(display: string): string | null {
-  const match = display.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  const match = display.trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
   if (!match) return null;
 
   const day = Number(match[1]);
@@ -43,26 +35,26 @@ export function parseDobDisplayToIso(display: string): string | null {
   return isValidIsoDate(iso) ? iso : null;
 }
 
+export function parseDobToIso(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  // If coming from <input type="date">, it's already ISO.
+  if (/^(\d{4})-(\d{2})-(\d{2})$/.test(trimmed)) {
+    return isValidIsoDate(trimmed) ? trimmed : null;
+  }
+
+  return parseDobDisplayToIso(trimmed);
+}
+
 export function openNativeDatePicker(input: HTMLInputElement) {
   try {
     (input as unknown as { showPicker?: () => void }).showPicker?.();
     return;
   } catch {
-    // ignore and fallback
   }
 
   input.focus();
   input.click();
 }
 
-function isValidIsoDate(iso: string): boolean {
-  const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return false;
-
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return false;
-
-  // Ensure it round-trips to the same day (rejects 2026-02-31)
-  const normalized = date.toISOString().slice(0, 10);
-  return normalized === iso;
-}

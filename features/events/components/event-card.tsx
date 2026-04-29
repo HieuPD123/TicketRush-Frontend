@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { ArrowRight, Calendar, MapPin } from "lucide-react";
@@ -8,7 +9,13 @@ import type { TrendingEvent } from "@/features/events/types";
 
 export type EventCardData = TrendingEvent;
 
-export default function EventCard({ data }: { data: EventCardData }) {
+export default function EventCard({
+  data,
+  href = "#",
+}: {
+  data: EventCardData;
+  href?: string;
+}) {
   return (
     <motion.article
       whileHover={{ scale: 1.02, y: -2 }}
@@ -50,13 +57,13 @@ export default function EventCard({ data }: { data: EventCardData }) {
           <div className="text-sm font-semibold text-foreground">
             {data.priceFrom}
           </div>
-          <a
-            href="#"
+          <Link
+            href={href}
             aria-label={`Xem chi tiết: ${data.title}`}
             className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface-2/50 text-foreground/80 transition group-hover:border-primary/45 group-hover:bg-surface-2/70 group-hover:text-foreground group-hover:shadow-[0_0_20px_rgba(124,58,237,0.22)]"
           >
             <ArrowRight className="h-4 w-4" />
-          </a>
+          </Link>
         </div>
 
         <div

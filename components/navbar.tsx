@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown,
   LogOut,
@@ -11,19 +10,18 @@ import {
   UserRound,
 } from "lucide-react";
 
-import { logoutAccount } from "@/features/auth/services/logout";
-import { MY_INFO_QUERY_KEY, useMyInfo } from "@/features/user/hooks/use-my-info";
+import { CATEGORY_LABELS, type Category } from "@/constants";
+import { useMyInfo } from "@/features/user/hooks/use-my-info";
+import { useLogout } from "@/features/auth/hooks/use-logout";
 
 export default function NavBar() {
-  const queryClient = useQueryClient();
   const { data: myInfo, isLoading } = useMyInfo();
+  const { logout } = useLogout();
+  const categories = Object.entries(CATEGORY_LABELS) as Array<[Category, string]>;
 
-  async function handleLogout() {
-    await logoutAccount();
-    queryClient.setQueryData(MY_INFO_QUERY_KEY, null);
-    queryClient.invalidateQueries({ queryKey: MY_INFO_QUERY_KEY });
-    window.location.href = "/";
-  }
+  const handleLogout = async () => {
+    await logout();
+  };
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-border bg-surface/55 backdrop-blur-xl">
@@ -37,26 +35,23 @@ export default function NavBar() {
           </span>
         </Link>
 
-        <details className="relative shrink-0">
+        <details className="group relative shrink-0">
           <summary className="group flex h-11 cursor-pointer list-none items-center gap-2 rounded-full px-3 text-sm font-medium text-foreground/80 transition hover:bg-surface-2/70 hover:text-foreground">
             Thể loại
             <ChevronDown className="h-4 w-4 text-foreground/70 transition group-open:rotate-180" />
           </summary>
-          <div className="absolute left-0 mt-2 w-52 overflow-hidden rounded-2xl border border-border bg-surface/85 p-1 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl">
-            {[
-              "Nhạc điện tử (EDM)",
-              "Hòa nhạc",
-              "Lễ hội",
-              "Club & Tiệc",
-            ].map((item) => (
+          <div className="absolute left-0 mt-2 w-[min(92vw,44rem)] overflow-hidden rounded-2xl border border-border bg-surface/90 p-2 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:w-[min(92vw,36rem)] lg:w-2xl">
+            <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-3">
+              {categories.map(([key, label]) => (
               <a
-                key={item}
-                href="#"
-                className="block rounded-xl px-3 py-2 text-sm text-foreground/80 transition hover:bg-surface-2/70 hover:text-foreground"
+                  key={key}
+                  href="#"
+                  className="rounded-xl px-3 py-2 text-sm text-foreground/80 transition hover:bg-surface-2/70 hover:text-foreground"
               >
-                {item}
-              </a>
-            ))}
+                  {label}
+                </a>
+              ))}
+            </div>
           </div>
         </details>
 
@@ -80,10 +75,7 @@ export default function NavBar() {
               <span className="grid h-8 w-8 place-items-center rounded-full border border-border bg-surface/60">
                 <UserRound className="h-4 w-4 text-foreground/70" />
               </span>
-              <span
-                aria-hidden
-                className="skeleton h-4 w-28 rounded-full"
-              />
+              <span aria-hidden className="skeleton h-4 w-28 rounded-full" />
             </div>
           ) : myInfo ? (
             <details className="relative">
@@ -121,7 +113,7 @@ export default function NavBar() {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-semibold text-red-400 transition hover:bg-surface-2/70 hover:text-red-300"
+                  className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-semibold text-red-400 transition hover:bg-surface-2/70 hover:text-red-300"
                 >
                   <span className="grid h-9 w-9 place-items-center rounded-full border border-border bg-surface/60">
                     <LogOut className="h-4 w-4" />

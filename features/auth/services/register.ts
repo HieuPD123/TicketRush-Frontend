@@ -1,121 +1,74 @@
 export type RegisterGender = "MALE" | "FEMALE" | "OTHER";
 
-export type RegisterRequest = {
-  fullName: string;
+type Result = {
+  id: number;
   email: string;
-  password: string;
-  dateOfBirth: string; // yyyy-mm-dd
+  fullName: string;
+  dateOfBirth: string;
   gender: RegisterGender;
+  role: string;
+  avatarUrl: string;
+  createdAt: string;
 };
 
-export type RegisterResult =
-  | {
-      ok: true;
-      message: string;
-      code?: number | string;
-    }
-  | {
-      ok: false;
-      message: string;
-      code?: number | string;
-      status?: number;
-    };
-
-type PossibleApiEnvelope = {
-  code?: number | string;
-  message?: string;
-  data?: unknown;
+type ApiResponse = {
+  code: number;
+  message: string;
+  result: Result;
 };
 
-function extractMessage(payload: unknown): {
-  code?: number | string;
-  message?: string;
-} {
-  if (typeof payload === "string") {
-    const trimmed = payload.trim();
-    if (/^\d+$/.test(trimmed)) return { code: trimmed };
-    return { message: trimmed };
-  }
+export type RegisterRequest = { 
+  fullName: string; 
+  email: string; 
+  password: string; 
+  dateOfBirth: string; // yyyy-mm-dd 
+  gender: RegisterGender; 
+};
 
-  if (payload && typeof payload === "object") {
-    const envelope = payload as PossibleApiEnvelope;
-    return {
-      code: envelope.code,
-      message:
-        typeof envelope.message === "string" ? envelope.message : undefined,
-    };
-  }
-
-  return {};
+export type RegisterResult = {
+  ok: boolean;
+  message: string;
 }
 
 export async function registerAccount(
   request: RegisterRequest,
 ): Promise<RegisterResult> {
   const url = process.env.NEXT_PUBLIC_AUTH_REGISTER_URL;
+  
   if (!url) {
     return {
       ok: false,
       message:
-        "Thiếu NEXT_PUBLIC_AUTH_REGISTER_URL.",
+        "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
     };
   }
 
-  try {
+    try {
     const res = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Accept: "application/json, text/plain, */*",
       },
       body: JSON.stringify(request),
     });
 
-    const contentType = res.headers.get("content-type") ?? "";
-    const isJson = contentType.includes("application/json");
-
-    const payload = isJson
-      ? await res.json().catch(() => undefined)
-      : await res.text().catch(() => undefined);
-
-    const { code, message } = extractMessage(payload);
-
-    // Some backends always return 200 and put the business code in the body.
-    if (code !== undefined) {
-      if (String(code) === "1000") {
-        return {
-          ok: true,
-          code,
-          message: message ?? "Đăng ký thành công",
-        };
-      }
-
-      return {
-        ok: false,
-        status: res.status,
-        code,
-        message: message ?? "Đăng ký thất bại",
-      };
-    }
+    const data: ApiResponse = await res.json();
 
     if (res.ok) {
       return {
         ok: true,
-        message:
-          message ?? (typeof payload === "string" ? payload : "Đăng ký thành công"),
+        message: data.message || "Đăng ký thành công",
       };
     }
 
     return {
       ok: false,
-      status: res.status,
-      message:
-        message ?? (typeof payload === "string" ? payload : "Đăng ký thất bại"),
+      message: data.message || "Đăng ký thất bại",
     };
   } catch {
     return {
       ok: false,
-      message: "Không thể kết nối tới server. Kiểm tra URL/CORS/backend.",
+      message: "Lỗi kết nối server",
     };
   }
 }

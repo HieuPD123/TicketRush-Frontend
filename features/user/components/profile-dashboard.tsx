@@ -148,18 +148,6 @@ export default function ProfileDashboard() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-bold tracking-[0.18em] text-foreground/85">
-                  SỐ ĐIỆN THOẠI
-                </label>
-                <input
-                  name="phone"
-                  inputMode="tel"
-                  placeholder="0123 456 789"
-                  defaultValue={myInfo?.phone ?? ""}
-                  className="h-11 w-full rounded-full border border-border bg-white/5 px-4 text-sm text-foreground/90 outline-none transition focus:border-primary/60 focus:ring-4 focus:ring-primary/15"
-                />
-              </div>
 
               <div className="space-y-2">
                 <label className="text-xs font-bold tracking-[0.18em] text-foreground/85">

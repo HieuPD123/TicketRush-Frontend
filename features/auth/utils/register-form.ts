@@ -1,5 +1,5 @@
 import type { RegisterGender, RegisterRequest } from "@/features/auth/services/register";
-import { normalizeDateOfBirth } from "@/features/auth/utils/date-of-birth";
+import { parseDobToIso } from "@/features/auth/utils/date-of-birth";
 import {
   isPasswordLengthValid,
   PASSWORD_MAX_LENGTH,
@@ -51,11 +51,11 @@ export function buildRegisterRequest(fields: RegisterFormFields): {
     };
   }
 
-  const dateOfBirth = normalizeDateOfBirth(fields.dateOfBirthRaw);
+  const dateOfBirth = parseDobToIso(fields.dateOfBirthRaw);
   if (!dateOfBirth) {
     return {
       request: null,
-      errorMessage: "Ngày sinh không hợp lệ (vd: 26/04/2026)",
+      errorMessage: "Ngày sinh không hợp lệ",
     };
   }
 
