@@ -4,8 +4,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
 import { loginAccount } from "@/features/auth/services/login";
-import { MY_INFO_QUERY_KEY } from "@/features/user/hooks/use-my-info";
-import { getMyInfo } from "@/features/user/services/get-my-info";
+import { ME_QUERY_KEY } from "@/features/auth/hooks/use-me";
+import { getMe } from "@/features/auth/services/me";
 
 export type LoginCardFeedback = {
   type: "success" | "error";
@@ -50,18 +50,18 @@ export function useLoginCard() {
       const result = await loginAccount({ email, password });
 
       if (result.ok) {
-        const myInfoResult = await getMyInfo();
-        if (!myInfoResult.ok) {
+        const meResult = await getMe();
+        if (!meResult.ok) {
           setFeedback({
             type: "error",
             message:
-              myInfoResult.message ??
+              meResult.message ??
               "Đăng nhập thành công nhưng không lấy được thông tin người dùng",
           });
           return;
         }
 
-        queryClient.setQueryData(MY_INFO_QUERY_KEY, myInfoResult.data!.result);
+        queryClient.setQueryData(ME_QUERY_KEY, meResult.result);
 
         form.reset();
         setShowPassword(false);

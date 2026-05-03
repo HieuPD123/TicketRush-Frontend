@@ -11,11 +11,11 @@ import {
 } from "lucide-react";
 
 import { CATEGORY_LABELS, type Category } from "@/constants";
-import { useMyInfo } from "@/features/user/hooks/use-my-info";
+import { useMe } from "@/features/auth/hooks/use-me";
 import { useLogout } from "@/features/auth/hooks/use-logout";
 
 export default function NavBar() {
-  const { data: myInfo, isLoading } = useMyInfo();
+  const { data: me, isLoading } = useMe();
   const { logout } = useLogout();
   const categories = Object.entries(CATEGORY_LABELS) as Array<[Category, string]>;
 
@@ -77,14 +77,14 @@ export default function NavBar() {
               </span>
               <span aria-hidden className="skeleton h-4 w-28 rounded-full" />
             </div>
-          ) : myInfo ? (
+          ) : me ? (
             <details className="relative">
               <summary className="group flex h-11 cursor-pointer list-none items-center gap-2 rounded-full px-3 text-sm font-semibold text-foreground/85 transition hover:bg-surface-2/70 hover:text-foreground">
                 <span className="grid h-8 w-8 place-items-center rounded-full border border-border bg-surface/60">
                   <UserRound className="h-4 w-4 text-foreground/70" />
                 </span>
                 <span className="max-w-40 truncate sm:max-w-56">
-                  {myInfo.fullName}
+                  {me.email}
                 </span>
                 <ChevronDown className="h-4 w-4 text-foreground/70 transition group-open:rotate-180" />
               </summary>

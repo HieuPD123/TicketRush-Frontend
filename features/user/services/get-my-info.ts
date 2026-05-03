@@ -37,6 +37,7 @@ export async function getMyInfo(): Promise<GetMyInfoResult> {
       method: "GET",
       credentials: "include",
       headers: {
+        "Content-Type": "application/json",
         Accept: "*/*",
       },
     });
