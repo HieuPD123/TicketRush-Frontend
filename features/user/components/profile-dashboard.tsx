@@ -1,38 +1,105 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { motion } from "framer-motion";
-import { CalendarDays, Pencil, Ticket, User } from "lucide-react";
+import { CalendarDays, Pencil, X } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import Cropper, { type Area, type Point } from "react-easy-crop";
 
+import Avatar from "@/components/user/avatar";
+import ProfileSidebar from "@/features/user/components/profile-sidebar";
 import { useDateOfBirthField } from "@/features/auth/hooks/use-date-of-birth-field";
-import { useMyInfo } from "@/features/user/hooks/use-my-info";
-
-const navItems = [
-  {
-    label: "Thông tin cá nhân",
-    href: "/profile",
-    icon: User,
-    active: true,
-  },
-  {
-    label: "Vé của tôi",
-    href: "#",
-    icon: Ticket,
-    active: false,
-  },
-] as const;
+import { ME_QUERY_KEY } from "@/features/auth/hooks/use-me";
+import { getMe } from "@/features/auth/services/me";
+import { MY_INFO_QUERY_KEY, useMyInfo } from "@/features/user/hooks/use-my-info";
+import { postMyAvatar } from "@/features/user/services/post-my-avatar";
+import { postMyInfo, type NewUserInfo } from "@/features/user/services/post-my-info";
+import { getCroppedImageBlob } from "@/features/user/utils/crop-image";
 
 export default function ProfileDashboard() {
   const { data: myInfo } = useMyInfo();
+  const queryClient = useQueryClient();
   const dateOfBirthField = useDateOfBirthField();
   const hasInitializedRef = useRef(false);
+  const avatarFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const avatarSrc = myInfo?.avatarUrl || "/default-avatar.svg";
+
+  const [avatarEditorSrc, setAvatarEditorSrc] = useState<string | null>(null);
+  const [avatarEditorFilename, setAvatarEditorFilename] = useState<string>("avatar.png");
+  const [avatarCrop, setAvatarCrop] = useState<Point>({ x: 0, y: 0 });
+  const [avatarZoom, setAvatarZoom] = useState(1);
+  const [avatarCroppedAreaPixels, setAvatarCroppedAreaPixels] = useState<Area | null>(null);
 
   const [fullName, setFullName] = useState("");
   const [gender, setGender] = useState<"" | "MALE" | "FEMALE" | "OTHER">("");
   const [dobError, setDobError] = useState<string | null>(null);
+
+  const saveMutation = useMutation({
+    mutationFn: async (payload: NewUserInfo) => postMyInfo(payload),
+    onSuccess: (result, variables) => {
+      if (!result.ok) return;
+
+      if (result.result) {
+        queryClient.setQueryData(MY_INFO_QUERY_KEY, result.result);
+      } else {
+        queryClient.setQueryData(MY_INFO_QUERY_KEY, (prev: unknown) => {
+          if (!prev || typeof prev !== "object") return prev;
+          return {
+            ...(prev as Record<string, unknown>),
+            fullName: variables.fullName,
+            dateOfBirth: variables.dateOfBirth,
+            gender: variables.gender,
+          };
+        });
+      }
+
+      // Ensure we re-sync with server state (source of truth).
+      queryClient.invalidateQueries({ queryKey: MY_INFO_QUERY_KEY });
+    },
+  });
+
+  const avatarMutation = useMutation({
+    mutationFn: async (file: File) => postMyAvatar(file),
+    onSuccess: async (result) => {
+      if (!result.ok) return;
+
+      if (result.result) {
+        queryClient.setQueryData(MY_INFO_QUERY_KEY, result.result);
+      }
+
+      queryClient.invalidateQueries({ queryKey: MY_INFO_QUERY_KEY });
+
+      const meResult = await getMe();
+      if (meResult.ok && meResult.result) {
+        queryClient.setQueryData(ME_QUERY_KEY, meResult.result);
+      }
+      queryClient.invalidateQueries({ queryKey: ME_QUERY_KEY });
+    },
+  });
+
+  function closeAvatarEditor() {
+    setAvatarCrop({ x: 0, y: 0 });
+    setAvatarZoom(1);
+    setAvatarCroppedAreaPixels(null);
+
+    setAvatarEditorSrc((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+
+    if (avatarFileInputRef.current) {
+      avatarFileInputRef.current.value = "";
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (avatarEditorSrc) {
+        URL.revokeObjectURL(avatarEditorSrc);
+      }
+    };
+  }, [avatarEditorSrc]);
 
   useEffect(() => {
     if (!myInfo) return;
@@ -51,51 +118,7 @@ export default function ProfileDashboard() {
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row">
-      <aside className="lg:sticky lg:top-24 lg:h-[calc(100dvh-6rem)] lg:w-72">
-        <div className="h-full rounded-[36px] border border-border bg-surface/55 p-3 backdrop-blur-xl">
-          <nav className="space-y-2">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const className = item.active
-                ? "relative flex items-center gap-3 rounded-2xl border border-primary/25 bg-linear-to-r from-primary/20 to-secondary/10 px-4 py-3 text-sm font-semibold text-foreground"
-                : "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-foreground/75 transition hover:bg-surface-2/70 hover:text-foreground";
-
-              const content = (
-                <>
-                  {item.active ? (
-                    <span className="absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-full bg-linear-to-b from-primary to-secondary" />
-                  ) : null}
-                  <span className="grid h-9 w-9 place-items-center rounded-full border border-border bg-surface/60">
-                    <Icon className="h-4 w-4 text-foreground/75" />
-                  </span>
-                  <span className="min-w-0 truncate">{item.label}</span>
-                </>
-              );
-
-              const inner = item.href === "#" ? (
-                <a href={item.href} className={className}>
-                  {content}
-                </a>
-              ) : (
-                <Link href={item.href} className={className}>
-                  {content}
-                </Link>
-              );
-
-              return (
-                <motion.div
-                  key={item.label}
-                  whileHover={item.active ? undefined : { scale: 1.01 }}
-                  whileTap={item.active ? undefined : { scale: 0.99 }}
-                  transition={{ type: "spring", stiffness: 260, damping: 22 }}
-                >
-                  {inner}
-                </motion.div>
-              );
-            })}
-          </nav>
-        </div>
-      </aside>
+      <ProfileSidebar />
 
       <section className="min-w-0 flex-1">
         <div className="rounded-[36px] border border-border bg-surface/55 p-7 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:p-9">
@@ -113,21 +136,17 @@ export default function ProfileDashboard() {
               <div className="relative">
                 <div className="h-20 w-20 rounded-full bg-linear-to-r from-primary/70 to-secondary/60 p-0.5">
                   <div className="h-full w-full overflow-hidden rounded-full border border-border bg-surface-2/70">
-                    <img
+                    <Avatar
                       src={avatarSrc}
                       alt="Ảnh đại diện"
                       className="h-full w-full rounded-full object-cover"
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
-                      onError={(event) => {
-                        event.currentTarget.src = "/default-avatar.svg";
-                      }}
                     />
                   </div>
                 </div>
 
                 <button
                   type="button"
+                  onClick={() => avatarFileInputRef.current?.click()}
                   className="cursor-pointer  absolute bottom-0 right-0 grid h-9 w-9 place-items-center rounded-full border border-border bg-surface/80 text-foreground/80 backdrop-blur-xl transition hover:bg-surface-2/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20"
                   aria-label="Chỉnh sửa ảnh đại diện"
                 >
@@ -147,9 +166,120 @@ export default function ProfileDashboard() {
             </div>
           </div>
 
+          <input
+            ref={avatarFileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            aria-hidden
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              if (!file) return;
+              if (!file.type.startsWith("image/")) return;
+
+              setAvatarEditorSrc((prev) => {
+                if (prev) URL.revokeObjectURL(prev);
+                return URL.createObjectURL(file);
+              });
+              setAvatarEditorFilename(file.name || "avatar.png");
+              setAvatarCrop({ x: 0, y: 0 });
+              setAvatarZoom(1);
+              setAvatarCroppedAreaPixels(null);
+            }}
+          />
+
+          {avatarEditorSrc ? (
+            <div className="mt-6 overflow-hidden rounded-3xl border border-border bg-surface/50 p-4 backdrop-blur-xl">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold">Cắt ảnh đại diện</p>
+                  <p className="mt-1 text-xs text-muted">Kéo để căn chỉnh, dùng thanh để phóng to/thu nhỏ.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeAvatarEditor}
+                  className="grid h-9 w-9 cursor-pointer place-items-center rounded-full border border-border bg-surface/70 text-foreground/80 transition hover:bg-surface-2/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20"
+                  aria-label="Đóng"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="mt-4">
+                <div className="relative h-72 w-full overflow-hidden rounded-2xl border border-border bg-black/30">
+                  <Cropper
+                    image={avatarEditorSrc}
+                    crop={avatarCrop}
+                    zoom={avatarZoom}
+                    aspect={1}
+                    cropShape="round"
+                    showGrid={false}
+                    onCropChange={setAvatarCrop}
+                    onZoomChange={setAvatarZoom}
+                    onCropComplete={(_, croppedAreaPixels) => {
+                      setAvatarCroppedAreaPixels(croppedAreaPixels);
+                    }}
+                  />
+                </div>
+
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <label className="flex items-center gap-3 text-xs font-semibold text-foreground/80">
+                    Zoom
+                    <input
+                      type="range"
+                      min={1}
+                      max={3}
+                      step={0.01}
+                      value={avatarZoom}
+                      onChange={(event) => setAvatarZoom(Number(event.currentTarget.value))}
+                      className="w-full max-w-56 cursor-pointer accent-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20"
+                    />
+                  </label>
+
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <button
+                      type="button"
+                      onClick={closeAvatarEditor}
+                      className="inline-flex h-11 cursor-pointer items-center justify-center rounded-full border border-border bg-surface/70 px-5 text-sm font-semibold text-foreground/80 transition hover:bg-surface-2/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20"
+                    >
+                      Hủy
+                    </button>
+                    <motion.button
+                      type="button"
+                      whileHover={avatarMutation.isPending ? undefined : { scale: 1.01 }}
+                      whileTap={avatarMutation.isPending ? undefined : { scale: 0.99 }}
+                      transition={{ type: "spring", stiffness: 260, damping: 22 }}
+                      disabled={avatarMutation.isPending || !avatarCroppedAreaPixels}
+                      aria-busy={avatarMutation.isPending}
+                      className="inline-flex h-11 cursor-pointer items-center justify-center rounded-full bg-linear-to-r from-primary to-secondary px-6 text-sm font-semibold text-foreground shadow-lg shadow-black/20 transition enabled:hover:opacity-90 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+                      onClick={async () => {
+                        if (!avatarCroppedAreaPixels) return;
+                        try {
+                          const blob = await getCroppedImageBlob(avatarEditorSrc, avatarCroppedAreaPixels);
+                          const croppedFile = new File([blob], avatarEditorFilename, {
+                            type: blob.type || "image/png",
+                          });
+
+                          const result = await avatarMutation.mutateAsync(croppedFile);
+                          if (result.ok) {
+                            closeAvatarEditor();
+                          }
+                        } catch {
+                          // Keep UI simple: rely on existing page state; user can retry.
+                        }
+                      }}
+                    >
+                      {avatarMutation.isPending ? "Đang tải lên..." : "Lưu ảnh"}
+                    </motion.button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           <form
             className="mt-8"
-            onSubmit={(event) => {
+            onSubmit={async (event) => {
               event.preventDefault();
 
               const iso = dateOfBirthField.isoValue;
@@ -169,6 +299,22 @@ export default function ProfileDashboard() {
               }
 
               setDobError(null);
+
+              const payload: NewUserInfo = {
+                fullName: fullName.trim(),
+                dateOfBirth: iso,
+                gender: gender || "MALE",
+              };
+
+              if (!payload.fullName) {
+                return;
+              }
+
+              if (!iso) {
+                return;
+              }
+
+              await saveMutation.mutateAsync(payload);
             }}
           >
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
@@ -178,7 +324,7 @@ export default function ProfileDashboard() {
                 </label>
                 <input
                   name="fullName"
-                  placeholder="Nguyễn Văn A"
+                  placeholder="Nhập họ và tên"
                   value={fullName}
                   onChange={(event) => setFullName(event.currentTarget.value)}
                   className="h-11 w-full rounded-full border border-border bg-white/5 px-4 text-sm text-foreground/90 outline-none transition focus:border-primary/60 focus:ring-4 focus:ring-primary/15"
@@ -268,7 +414,7 @@ export default function ProfileDashboard() {
                 </label>
                 <select
                   name="gender"
-                  value={gender}
+                  value={gender || "MALE"}
                   onChange={(event) => {
                     const next = event.currentTarget.value;
                     if (next === "MALE" || next === "FEMALE" || next === "OTHER") {
@@ -279,9 +425,6 @@ export default function ProfileDashboard() {
                   }}
                   className="h-11 w-full appearance-none rounded-full border border-border bg-white/5 px-4 text-sm text-foreground/90 outline-none transition focus:border-primary/60 focus:ring-4 focus:ring-primary/15"
                 >
-                  <option value="" className="bg-surface">
-                    Chọn giới tính
-                  </option>
                   <option value="MALE" className="bg-surface">
                     Nam
                   </option>
@@ -298,12 +441,14 @@ export default function ProfileDashboard() {
             <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <motion.button
                 type="submit"
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
+                whileHover={saveMutation.isPending ? undefined : { scale: 1.01 }}
+                whileTap={saveMutation.isPending ? undefined : { scale: 0.99 }}
                 transition={{ type: "spring", stiffness: 260, damping: 22 }}
-                className="cursor-pointer inline-flex h-11 items-center justify-center rounded-full bg-linear-to-r from-primary to-secondary px-6 text-sm font-semibold text-foreground shadow-lg shadow-black/20 transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20"
+                disabled={saveMutation.isPending}
+                aria-busy={saveMutation.isPending}
+                className="cursor-pointer inline-flex h-11 items-center justify-center rounded-full bg-linear-to-r from-primary to-secondary px-6 text-sm font-semibold text-foreground shadow-lg shadow-black/20 transition enabled:hover:opacity-90 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Lưu thay đổi
+                {saveMutation.isPending ? "Đang lưu..." : "Lưu thay đổi"}
               </motion.button>
             </div>
           </form>

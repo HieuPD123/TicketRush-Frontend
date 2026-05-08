@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
-
 import { useLoginCard } from "@/features/auth/hooks/use-login-card";
 
 export default function LoginCard() {
@@ -92,7 +91,7 @@ export default function LoginCard() {
             type="submit"
             disabled={loginCard.isSubmitting}
             aria-busy={loginCard.isSubmitting}
-            className="mt-2 inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-gradient-to-r from-primary to-secondary text-sm font-semibold text-foreground shadow-lg shadow-black/20 transition enabled:hover:opacity-90 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-2 inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-linear-to-r from-primary to-secondary text-sm font-semibold text-foreground shadow-lg shadow-black/20 transition enabled:hover:opacity-90 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loginCard.isSubmitting ? (
               <>
@@ -122,7 +121,7 @@ export default function LoginCard() {
         Chưa có tài khoản?{" "}
         <Link
           href="/register"
-          className="bg-gradient-to-r from-primary to-secondary bg-clip-text font-semibold text-transparent transition hover:opacity-90"
+          className="bg-linear-to-r from-primary to-secondary bg-clip-text font-semibold text-transparent transition hover:opacity-90"
         >
           Đăng Ký Ngay
         </Link>

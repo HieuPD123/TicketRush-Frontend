@@ -75,6 +75,7 @@ export default function RegisterCard() {
                 type="email"
                 autoComplete="email"
                 placeholder="Nhập địa chỉ email"
+                ref={registerCard.emailInputRef}
                 className="h-11 w-full rounded-full border border-border bg-surface/60 pl-11 pr-4 text-sm text-foreground/90 outline-none transition focus:border-primary/60 focus:ring-4 focus:ring-primary/15"
               />
             </div>
@@ -257,13 +258,60 @@ export default function RegisterCard() {
             </fieldset>
           </div>
 
+          <div className="space-y-2">
+            <label
+              htmlFor={registerCard.ids.otpId}
+              className="text-xs font-bold text-foreground/85"
+            >
+              Mã OTP
+            </label>
+
+            <div className="flex gap-3">
+              <div className="relative flex-1">
+                <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/55" />
+                <input
+                  id={registerCard.ids.otpId}
+                  name="otp"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="Nhập mã OTP"
+                  maxLength={6}
+                  value={registerCard.otpValue}
+                  onChange={(event) => {
+                    const digitsOnly = event.currentTarget.value.replace(/\D/g, "");
+                    registerCard.setOtpValue(digitsOnly.slice(0, 6));
+                  }}
+                  className="h-11 w-full rounded-full border border-border bg-surface/60 pl-11 pr-4 text-sm text-foreground/90 outline-none transition focus:border-primary/60 focus:ring-4 focus:ring-primary/15"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={registerCard.handleSendOtp}
+                disabled={
+                  registerCard.isSendingOtp ||
+                  registerCard.isOtpCooldownActive
+                }
+                aria-busy={registerCard.isSendingOtp}
+                className="inline-flex h-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-linear-to-r from-primary to-secondary px-5 text-sm font-semibold leading-none text-foreground shadow-lg shadow-black/20 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20 enabled:cursor-pointer enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70 disabled:brightness-75 disabled:shadow-none"
+              >
+                {registerCard.isOtpCooldownActive
+                  ? registerCard.otpCooldownLabel
+                  : registerCard.isSendingOtp
+                    ? "Đang gửi..."
+                    : "Gửi OTP"}
+              </button>
+            </div>
+          </div>
+
           <motion.button
             whileHover={registerCard.isSubmitting ? undefined : { scale: 1.01 }}
             whileTap={registerCard.isSubmitting ? undefined : { scale: 0.99 }}
             type="submit"
             disabled={registerCard.isSubmitting}
             aria-busy={registerCard.isSubmitting}
-            className="mt-2 inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-gradient-to-r from-primary to-secondary text-sm font-semibold text-foreground shadow-lg shadow-black/20 transition enabled:hover:opacity-90 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-2 inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-linear-to-r from-primary to-secondary text-sm font-semibold text-foreground shadow-lg shadow-black/20 transition enabled:hover:opacity-90 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {registerCard.isSubmitting ? (
               <>

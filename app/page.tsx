@@ -1,5 +1,5 @@
 import Footer from "@/components/footer";
-import Hero from "@/components/hero";
+import Hero from "@/components/homepage/hero";
 import NavBar from "@/components/navbar";
 import TrendingEventsSection from "@/features/events/components/trending-events-section";
 import { getTrendingEvents } from "@/features/events/services/get-trending-events";

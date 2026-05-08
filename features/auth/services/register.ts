@@ -22,7 +22,8 @@ export type RegisterRequest = {
   email: string; 
   password: string; 
   dateOfBirth: string; // yyyy-mm-dd 
-  gender: RegisterGender; 
+  gender: RegisterGender;
+  otp: string;
 };
 
 export type RegisterResult = {

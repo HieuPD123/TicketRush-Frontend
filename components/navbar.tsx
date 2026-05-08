@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import {
   ChevronDown,
   LogOut,
@@ -9,15 +10,49 @@ import {
   User,
   UserRound,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 
+import Logo from "@/components/logo";
+import Avatar from "@/components/user/avatar";
 import { CATEGORY_LABELS, type Category } from "@/constants";
 import { useMe } from "@/features/auth/hooks/use-me";
 import { useLogout } from "@/features/auth/hooks/use-logout";
+import { MY_INFO_QUERY_KEY } from "@/features/user/hooks/use-my-info";
+import { getMyInfo, type Info } from "@/features/user/services/get-my-info";
 
 export default function NavBar() {
+    const [logoSize, setLogoSize] = useState({
+    width: 220,
+    height: 88,
+  });
+
+  useEffect(() => {
+    const updateLogoSize = () => {
+      if (window.innerWidth < 640) {
+        setLogoSize({ width: 140, height: 56 });
+      } else if (window.innerWidth < 768) {
+        setLogoSize({ width: 180, height: 72 });
+      } else if (window.innerWidth < 1024) {
+        setLogoSize({ width: 220, height: 88 });
+      } else {
+        setLogoSize({ width: 260, height: 104 });
+      }
+    };
+
+    updateLogoSize();
+
+    window.addEventListener("resize", updateLogoSize);
+
+    return () => {
+      window.removeEventListener("resize", updateLogoSize);
+    };
+  }, []);
   const { data: me, isLoading } = useMe();
   const { logout } = useLogout();
   const categories = Object.entries(CATEGORY_LABELS) as Array<[Category, string]>;
+
+
+  const avatarSrc = me?.avatarUrl || "/default-avatar.svg";
 
   const handleLogout = async () => {
     await logout();
@@ -26,14 +61,10 @@ export default function NavBar() {
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-border bg-surface/55 backdrop-blur-xl">
       <div className="mx-auto flex h-20 max-w-6xl items-center gap-4 px-4 sm:px-6 lg:px-8">
-        <Link
-          href="/"
-          className="shrink-0 text-xl font-extrabold tracking-tight sm:text-2xl"
-        >
-          <span className="bg-linear-to-r from-primary to-secondary bg-clip-text text-transparent drop-shadow-[0_0_18px_rgba(124,58,237,0.40)]">
-            TicketRush
-          </span>
-        </Link>
+        <Logo
+          width={logoSize.width}
+          height={logoSize.height}
+        />
 
         <details className="group relative shrink-0">
           <summary className="group flex h-11 cursor-pointer list-none items-center gap-2 rounded-full px-3 text-sm font-medium text-foreground/80 transition hover:bg-surface-2/70 hover:text-foreground">
@@ -80,8 +111,12 @@ export default function NavBar() {
           ) : me ? (
             <details className="relative">
               <summary className="group flex h-11 cursor-pointer list-none items-center gap-2 rounded-full px-3 text-sm font-semibold text-foreground/85 transition hover:bg-surface-2/70 hover:text-foreground">
-                <span className="grid h-8 w-8 place-items-center rounded-full border border-border bg-surface/60">
-                  <UserRound className="h-4 w-4 text-foreground/70" />
+                <span className="grid h-8 w-8 place-items-center overflow-hidden rounded-full border border-border bg-surface/60">
+                  <Avatar
+                    src={avatarSrc}
+                    alt="Ảnh đại diện"
+                    className="h-full w-full object-cover"
+                  />
                 </span>
                 <span className="max-w-40 truncate sm:max-w-56">
                   {me.email}

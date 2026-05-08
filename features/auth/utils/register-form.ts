@@ -13,6 +13,7 @@ export type RegisterFormFields = {
   confirmPassword: string;
   dateOfBirthRaw: string;
   genderRaw: string;
+  otp: string;
 };
 
 export function mapGenderRawToApiGender(genderRaw: string): RegisterGender {
@@ -59,6 +60,14 @@ export function buildRegisterRequest(fields: RegisterFormFields): {
     };
   }
 
+  const otp = fields.otp.trim();
+  if (!/^\d{6}$/.test(otp)) {
+    return {
+      request: null,
+      errorMessage: "Mã OTP phải gồm 6 chữ số",
+    };
+  }
+
   return {
     request: {
       fullName,
@@ -66,6 +75,7 @@ export function buildRegisterRequest(fields: RegisterFormFields): {
       password: fields.password,
       dateOfBirth,
       gender: mapGenderRawToApiGender(fields.genderRaw),
+      otp,
     },
     errorMessage: null,
   };

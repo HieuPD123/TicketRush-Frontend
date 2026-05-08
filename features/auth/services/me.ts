@@ -2,6 +2,7 @@
 export type Me = {
     email: string;
     role: "CUSTOMER" | "ADMIN";
+    avatarUrl: string | null;
 };
 
 type ApiResponse = {

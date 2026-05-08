@@ -1,5 +1,4 @@
 import { Info } from "@/features/user/services/get-my-info";
-import { data } from "framer-motion/client";
 
 export type NewUserInfo = {
     fullName: string;
@@ -11,12 +10,13 @@ type ApiResponse = {
     code: number;
     message: string;
     result: Info;
-}
+};
 
 type PostMyInfoResult = {
     ok: boolean;
     message: string;
-}
+    result: Info | null;
+};
 
 export async function postMyInfo(newInfo: NewUserInfo): Promise<PostMyInfoResult> {
     const url = process.env.NEXT_PUBLIC_USER_PROFILE_URL;
@@ -25,6 +25,7 @@ export async function postMyInfo(newInfo: NewUserInfo): Promise<PostMyInfoResult
         return {
             ok: false,
             message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
+            result: null,
         };
     }
 
@@ -45,17 +46,20 @@ export async function postMyInfo(newInfo: NewUserInfo): Promise<PostMyInfoResult
             return {
                 ok: false,
                 message: data.message,
+                result: null,
             };
         }
 
         return {
             ok: true,
             message: data.message,
+            result: data.result ?? null,
         };
     } catch {
         return {
             ok: false,
             message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
+            result: null,
         };
     }
 }
