@@ -61,10 +61,7 @@ export default function NavBar() {
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-border bg-surface/55 backdrop-blur-xl">
       <div className="mx-auto flex h-20 max-w-6xl items-center gap-4 px-4 sm:px-6 lg:px-8">
-        <Logo
-          width={logoSize.width}
-          height={logoSize.height}
-        />
+        <Logo className="shrink-0 text-xl font-extrabold tracking-tight sm:text-2xl"/>
 
         <details className="group relative shrink-0">
           <summary className="group flex h-11 cursor-pointer list-none items-center gap-2 rounded-full px-3 text-sm font-medium text-foreground/80 transition hover:bg-surface-2/70 hover:text-foreground">
