@@ -170,6 +170,16 @@ export function useForgotPasswordCard() {
     setShowConfirmPassword((value) => !value);
   }
 
+  function goBackToStepOne() {
+    setStep(1);
+    setFeedback(null);
+    setOtpDigits(Array.from({ length: OTP_LENGTH }, () => ""));
+    setPasswordValue("");
+    setConfirmPasswordValue("");
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+  }
+
   async function handleSendOtp() {
     setFeedback(null);
 
@@ -321,6 +331,7 @@ export function useForgotPasswordCard() {
     feedback,
     handleSendOtp,
     handleSubmit,
+    goBackToStepOne,
     passwordMin: PASSWORD_MIN_LENGTH,
     passwordMax: PASSWORD_MAX_LENGTH,
   };

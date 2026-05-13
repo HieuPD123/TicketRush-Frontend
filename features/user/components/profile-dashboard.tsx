@@ -34,10 +34,16 @@ export default function ProfileDashboard() {
   const [fullName, setFullName] = useState("");
   const [gender, setGender] = useState<"" | "MALE" | "FEMALE" | "OTHER">("");
   const [dobError, setDobError] = useState<string | null>(null);
+  const [saveFeedback, setSaveFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const saveMutation = useMutation({
     mutationFn: async (payload: NewUserInfo) => postMyInfo(payload),
     onSuccess: (result, variables) => {
+      setSaveFeedback({
+        type: result.ok ? "success" : "error",
+        message: result.message,
+      });
+
       if (!result.ok) return;
 
       if (result.result) {
@@ -307,12 +313,16 @@ export default function ProfileDashboard() {
               };
 
               if (!payload.fullName) {
+                setSaveFeedback({ type: "error", message: "Vui lòng nhập họ và tên." });
                 return;
               }
 
               if (!iso) {
+                setSaveFeedback({ type: "error", message: "Ngày sinh không hợp lệ." });
                 return;
               }
+
+              setSaveFeedback(null);
 
               await saveMutation.mutateAsync(payload);
             }}
@@ -450,6 +460,21 @@ export default function ProfileDashboard() {
               >
                 {saveMutation.isPending ? "Đang lưu..." : "Lưu thay đổi"}
               </motion.button>
+            </div>
+
+            <div className="mt-4 min-h-6">
+              {saveFeedback ? (
+                <p
+                  className={
+                    "text-sm " +
+                    (saveFeedback.type === "success" ? "text-green-400" : "text-red-400")
+                  }
+                >
+                  {saveFeedback.type === "success"
+                    ? "Cập nhật thông tin thành công"
+                    : saveFeedback.message}
+                </p>
+              ) : null}
             </div>
           </form>
         </div>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ChevronRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
+import { ArrowLeft, ChevronRight, Eye, EyeOff, Lock, Mail } from "lucide-react";
 
 import { useForgotPasswordCard } from "@/features/auth/hooks/use-forgot-password-card";
 
@@ -17,7 +17,7 @@ export default function ForgotPasswordCard() {
         initial={{ opacity: 0, y: 14, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ type: "spring", stiffness: 260, damping: 24 }}
-        className="rounded-[40px] border border-border bg-surface/60 p-7 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:p-10"
+        className="relative rounded-[40px] border border-border bg-surface/60 p-7 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl sm:p-10"
       >
         <h1 className="text-center text-2xl font-extrabold tracking-tight sm:text-3xl">
           Đổi mật khẩu
@@ -66,6 +66,17 @@ export default function ForgotPasswordCard() {
             </span>
           </div>
         </div>
+
+        {forgotPassword.step === 2 ? (
+          <button
+            type="button"
+            onClick={forgotPassword.goBackToStepOne}
+            className="cursor-pointer absolute left-5 top-5 inline-flex items-center gap-2 rounded-full border border-border bg-surface/60 px-4 py-2 text-xs font-semibold text-foreground/80 transition hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Quay lại
+          </button>
+        ) : null}
 
         <form className="mt-7 flex flex-col" onSubmit={forgotPassword.handleSubmit}>
           <div className={forgotPassword.step === 1 ? "space-y-5" : "space-y-5"}>
@@ -259,8 +270,15 @@ export default function ForgotPasswordCard() {
             </div>
 
             <div className="min-h-6">
-              {forgotPassword.feedback && forgotPassword.feedback.type === "error" ? (
-                <p className="text-center text-sm text-red-400">
+              {forgotPassword.feedback ? (
+                <p
+                  className={
+                    "text-center text-sm " +
+                    (forgotPassword.feedback.type === "success"
+                      ? "text-green-400"
+                      : "text-red-400")
+                  }
+                >
                   {forgotPassword.feedback.message}
                 </p>
               ) : null}

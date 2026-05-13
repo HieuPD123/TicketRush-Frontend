@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Calendar, Clock, MapPin } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -16,6 +17,7 @@ export default function EventDetailScreen({ eventId }: { eventId: string }) {
   const [isHoveringImage, setIsHoveringImage] = useState(false);
   const [isHoveringDetailZone, setIsHoveringDetailZone] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 1024px)");
@@ -47,6 +49,7 @@ export default function EventDetailScreen({ eventId }: { eventId: string }) {
   const minPrice = event?.zones && event.zones.length > 0
     ? Math.min(...event.zones.map(z => z.price))
     : undefined;
+  const bookingHref = `/events/${eventId}/booking`;
 
   return (
     <div className="pb-16">
@@ -126,7 +129,8 @@ export default function EventDetailScreen({ eventId }: { eventId: string }) {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.99 }}
                 transition={{ type: "spring", stiffness: 260, damping: 22 }}
-                className="mt-4 inline-flex h-12 w-full items-center justify-center rounded-full bg-linear-to-r from-primary to-secondary text-sm font-bold text-foreground shadow-[0_0_0_1px_rgba(255,255,255,0.06)] outline-none transition focus:ring-4 focus:ring-primary/20"
+                onClick={() => router.push(bookingHref)}
+                className="cursor-pointer mt-4 inline-flex h-12 w-full items-center justify-center rounded-full bg-linear-to-r from-primary to-secondary text-sm font-bold text-foreground shadow-[0_0_0_1px_rgba(255,255,255,0.06)] outline-none transition focus:ring-4 focus:ring-primary/20"
                 style={{
                   boxShadow:
                     "0 0 0 1px rgba(255,255,255,0.06), 0 22px 70px color-mix(in srgb, var(--primary) 20%, transparent)",

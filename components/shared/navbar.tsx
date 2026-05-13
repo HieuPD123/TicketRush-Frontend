@@ -45,7 +45,7 @@ function buildEventsHref(searchText: string, category?: Category): string {
 export default function NavBar({
   searchValue,
   onSearchChange,
-  searchPlaceholder = "Tìm kiếm sự kiện, nghệ sĩ, địa điểm...",
+  searchPlaceholder = "Tìm kiếm sự kiện",
   searchAriaLabel = "Tìm kiếm",
 }: NavBarProps) {
   const { data: me, isLoading } = useMe();

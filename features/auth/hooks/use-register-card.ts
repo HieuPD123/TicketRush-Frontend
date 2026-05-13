@@ -237,11 +237,11 @@ export function useRegisterCard() {
 
     if (result.ok) {
       // Keep user on the registration page (do not redirect to login).
-      // Reset the form UI but keep the email field filled so user can proceed.
+      // Reset the form UI after success.
       form.reset();
       resetFormState();
       setFullName("");
-      setEmail(request.email ?? "");
+      setEmail("");
       setGender("male");
       setOtpValue("");
       dateOfBirthField.reset();

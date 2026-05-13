@@ -27,6 +27,20 @@ export type Zone = {
     totalSeats: number;
 }
 
+export type SeatStatus = "AVAILABLE" | "LOCKED" | "SOLD";
+
+export type Seat = {
+  id: number;
+  zoneId: number;
+  zoneName: string;
+  colorHex: string;
+  price: number;
+  rowNumber: number;
+  colNumber: number;
+  label: string;
+  status: SeatStatus;
+}
+
 export type Event = {
     id: number;
     title: string;
