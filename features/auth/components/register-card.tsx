@@ -55,6 +55,10 @@ export default function RegisterCard() {
                 type="text"
                 autoComplete="name"
                 placeholder="Nhập họ và tên của bạn"
+                value={registerCard.fullName}
+                onChange={(event) =>
+                  registerCard.setFullName(event.currentTarget.value)
+                }
                 className="h-11 w-full rounded-full border border-border bg-surface/60 pl-11 pr-4 text-sm text-foreground/90 outline-none transition focus:border-primary/60 focus:ring-4 focus:ring-primary/15"
               />
             </div>
@@ -75,7 +79,8 @@ export default function RegisterCard() {
                 type="email"
                 autoComplete="email"
                 placeholder="Nhập địa chỉ email"
-                ref={registerCard.emailInputRef}
+                value={registerCard.email}
+                onChange={(event) => registerCard.setEmail(event.currentTarget.value)}
                 className="h-11 w-full rounded-full border border-border bg-surface/60 pl-11 pr-4 text-sm text-foreground/90 outline-none transition focus:border-primary/60 focus:ring-4 focus:ring-primary/15"
               />
             </div>
@@ -232,7 +237,8 @@ export default function RegisterCard() {
                     name="gender"
                     value="male"
                     className="h-4 w-4 cursor-pointer accent-primary"
-                    defaultChecked
+                    checked={registerCard.gender === "male"}
+                    onChange={() => registerCard.setGender("male")}
                   />
                   Nam
                 </label>
@@ -242,6 +248,8 @@ export default function RegisterCard() {
                     name="gender"
                     value="female"
                     className="h-4 w-4 cursor-pointer accent-primary"
+                    checked={registerCard.gender === "female"}
+                    onChange={() => registerCard.setGender("female")}
                   />
                   Nữ
                 </label>
@@ -251,6 +259,8 @@ export default function RegisterCard() {
                     name="gender"
                     value="other"
                     className="h-4 w-4 cursor-pointer accent-primary"
+                    checked={registerCard.gender === "other"}
+                    onChange={() => registerCard.setGender("other")}
                   />
                   Khác
                 </label>

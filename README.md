@@ -28,11 +28,6 @@ This project is frontend-only and calls the Spring Boot backend directly.
 
 Create a `.env.local` file and set:
 
-```bash
-NEXT_PUBLIC_TRENDING_EVENTS_URL=http://localhost:8080/api/events/trending
-NEXT_PUBLIC_AUTH_REGISTER_URL=http://localhost:8080/api/auth/register
-```
-
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 

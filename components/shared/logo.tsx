@@ -13,7 +13,7 @@ export default function Logo({ className }: LogoProps) {
         (className ?? "")
       }
     >
-      <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+      <span className="bg-linear-to-r from-primary to-secondary bg-clip-text text-transparent">
         TicketRush
       </span>
     </Link>

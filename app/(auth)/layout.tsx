@@ -1,17 +1,57 @@
 
-import Logo from "@/components/logo";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
-export default function AuthLayout({
+import Logo from "@/components/shared/logo";
+
+async function isAuthenticated() {
+  const url = process.env.NEXT_PUBLIC_AUTH_ME_URL;
+
+  if (!url) {
+    return false;
+  }
+
+  const cookieStore = await cookies();
+  const cookieHeader = cookieStore
+    .getAll()
+    .map(({ name, value }) => `${name}=${value}`)
+    .join("; ");
+
+  if (!cookieHeader) {
+    return false;
+  }
+
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "*/*",
+        Cookie: cookieHeader,
+      },
+      cache: "no-store",
+    });
+
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export default async function AuthLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  if (await isAuthenticated()) {
+    redirect("/");
+  }
+
   return (
     <div className="relative min-h-dvh overflow-hidden bg-background">
       <div aria-hidden className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute -right-40 -bottom-40 h-[32rem] w-[32rem] rounded-full bg-secondary/16 blur-3xl" />
-        <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-surface/30" />
+        <div className="absolute -left-40 -top-40 h-128 w-lg rounded-full bg-primary/20 blur-3xl" />
+        <div className="absolute -right-40 -bottom-40 h-128 w-lg rounded-full bg-secondary/16 blur-3xl" />
+        <div className="absolute inset-0 bg-linear-to-b from-background via-background to-surface/30" />
       </div>
 
       <div className="absolute left-4 top-4 z-10 sm:left-6 sm:top-6">

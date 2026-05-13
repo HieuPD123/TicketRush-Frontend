@@ -1,4 +1,4 @@
-export type SendRegisterOtpRequest = {
+export type SendOtpRequest = {
   email: string;
 };
 
@@ -10,20 +10,21 @@ type ApiResponse = {
 
 export type SendRegisterOtpResult = {
   ok: boolean;
+  code: number | null;
   message: string;
 };
 
 export async function sendRegisterOtp(
-  request: SendRegisterOtpRequest,
+  request: SendOtpRequest,
 ): Promise<SendRegisterOtpResult> {
   const url =
     process.env.NEXT_PUBLIC_AUTH_SEND_REGISTER_OTP_URL;
 
-    if (!url) {
+  if (!url) {
     return {
-        ok: false,
-        message:
-        "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
+      ok: false,
+      code: null,
+      message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
     };
   }
 
@@ -37,22 +38,30 @@ export async function sendRegisterOtp(
       body: JSON.stringify(request),
     });
 
-    const data: ApiResponse = await res.json();
+    let data: ApiResponse | null = null;
+    try {
+      data = (await res.json()) as ApiResponse;
+    } catch {
+      data = null;
+    }
 
     if (res.ok) {
       return {
         ok: true,
-        message: data.message || "Đã gửi OTP",
+        code: data?.code ?? res.status,
+        message: data?.message || "Đã gửi OTP",
       };
     }
 
     return {
       ok: false,
-      message: data.message || "Gửi OTP thất bại",
+      code: data?.code ?? res.status,
+      message: data?.message || "Gửi OTP thất bại",
     };
   } catch {
     return {
       ok: false,
+      code: null,
       message: "Lỗi kết nối server",
     };
   }

@@ -24,7 +24,7 @@ function getQueryClient() {
 
     // debug browser only
     if (typeof window !== "undefined") {
-      // @ts-ignore
+      // @ts-expect-error debug helper on window
       window.rq = browserQueryClient;
     }
   }

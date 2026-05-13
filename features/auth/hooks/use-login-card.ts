@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -6,6 +6,24 @@ import { useRouter } from "next/navigation";
 import { loginAccount } from "@/features/auth/services/login";
 import { ME_QUERY_KEY } from "@/features/auth/hooks/use-me";
 import { getMe } from "@/features/auth/services/me";
+
+const LOGIN_DRAFT_STORAGE_KEY = "ticketrush.auth.loginDraft";
+
+function readLoginDraft(): { email: string } {
+  if (typeof window === "undefined") {
+    return { email: "" };
+  }
+
+  try {
+    const raw = window.sessionStorage.getItem(LOGIN_DRAFT_STORAGE_KEY);
+    if (!raw) return { email: "" };
+
+    const parsed = JSON.parse(raw) as { email?: string };
+    return { email: typeof parsed.email === "string" ? parsed.email : "" };
+  } catch {
+    return { email: "" };
+  }
+}
 
 export type LoginCardFeedback = {
   type: "success" | "error";
@@ -20,6 +38,16 @@ export function useLoginCard() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<LoginCardFeedback>(null);
+  const [email, setEmail] = useState(() => readLoginDraft().email);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    window.sessionStorage.setItem(
+      LOGIN_DRAFT_STORAGE_KEY,
+      JSON.stringify({ email }),
+    );
+  }, [email]);
 
   function togglePasswordVisibility() {
     setShowPassword((value) => !value);
@@ -34,10 +62,10 @@ export function useLoginCard() {
     const form = event.currentTarget;
     const data = new FormData(form);
 
-    const email = String(data.get("email") ?? "").trim();
+    const submittedEmail = String(data.get("email") ?? "").trim();
     const password = String(data.get("password") ?? "");
 
-    if (!email || !password) {
+    if (!submittedEmail || !password) {
       setFeedback({
         type: "error",
         message: "Vui lòng nhập email và mật khẩu",
@@ -47,7 +75,7 @@ export function useLoginCard() {
 
     setIsSubmitting(true);
     try {
-      const result = await loginAccount({ email, password });
+      const result = await loginAccount({ email: submittedEmail, password });
 
       if (result.ok) {
         const meResult = await getMe();
@@ -62,6 +90,8 @@ export function useLoginCard() {
         }
 
         queryClient.setQueryData(ME_QUERY_KEY, meResult.result);
+  window.sessionStorage.removeItem(LOGIN_DRAFT_STORAGE_KEY);
+  setEmail("");
 
         form.reset();
         setShowPassword(false);
@@ -80,6 +110,7 @@ export function useLoginCard() {
         passwordField.value = "";
       }
       setShowPassword(false);
+      setEmail(submittedEmail);
     } finally {
       setIsSubmitting(false);
     }
@@ -90,6 +121,8 @@ export function useLoginCard() {
       emailId,
       passwordId,
     },
+    email,
+    setEmail,
     showPassword,
     togglePasswordVisibility,
     isSubmitting,

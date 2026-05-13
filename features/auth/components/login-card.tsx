@@ -39,6 +39,8 @@ export default function LoginCard() {
                 type="email"
                 autoComplete="email"
                 placeholder="Nhập địa chỉ email của bạn"
+                value={loginCard.email}
+                onChange={(event) => loginCard.setEmail(event.currentTarget.value)}
                 className="h-11 w-full rounded-full border border-border bg-surface/60 pl-11 pr-4 text-sm text-foreground/90 outline-none transition focus:border-primary/60 focus:ring-4 focus:ring-primary/15"
               />
             </div>
@@ -53,7 +55,7 @@ export default function LoginCard() {
                 MẬT KHẨU
               </label>
               <Link
-                href="#"
+                href="/forgot-password"
                 className="text-xs font-semibold text-secondary/90 transition hover:text-secondary"
               >
                 Quên mật khẩu?

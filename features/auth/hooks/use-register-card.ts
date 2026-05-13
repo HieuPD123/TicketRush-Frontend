@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 
 import {
   registerAccount,
@@ -8,13 +8,87 @@ import { sendRegisterOtp } from "@/features/auth/services/send-register-otp";
 import { useDateOfBirthField } from "@/features/auth/hooks/use-date-of-birth-field";
 import {
   buildRegisterRequest,
-  mapGenderRawToApiGender,
 } from "@/features/auth/utils/register-form";
 
 export type RegisterCardFeedback = {
   type: "success" | "error";
   message: string;
 } | null;
+
+const OTP_COOLDOWN_SECONDS = 2 * 60;
+const REGISTER_DRAFT_STORAGE_KEY = "ticketrush.auth.registerDraft";
+
+function readRegisterDraft(): {
+  fullName: string;
+  email: string;
+  dateOfBirth: string;
+  gender: string;
+  otp: string;
+} {
+  if (typeof window === "undefined") {
+    return {
+      fullName: "",
+      email: "",
+      dateOfBirth: "",
+      gender: "male",
+      otp: "",
+    };
+  }
+
+  try {
+    const raw = window.sessionStorage.getItem(REGISTER_DRAFT_STORAGE_KEY);
+    if (!raw) {
+      return {
+        fullName: "",
+        email: "",
+        dateOfBirth: "",
+        gender: "male",
+        otp: "",
+      };
+    }
+
+    const parsed = JSON.parse(raw) as {
+      fullName?: string;
+      email?: string;
+      dateOfBirth?: string;
+      gender?: string;
+      otp?: string;
+    };
+
+    return {
+      fullName: typeof parsed.fullName === "string" ? parsed.fullName : "",
+      email: typeof parsed.email === "string" ? parsed.email : "",
+      dateOfBirth:
+        typeof parsed.dateOfBirth === "string" ? parsed.dateOfBirth : "",
+      gender:
+        parsed.gender === "female" || parsed.gender === "other"
+          ? parsed.gender
+          : "male",
+      otp: typeof parsed.otp === "string" ? parsed.otp : "",
+    };
+  } catch {
+    return {
+      fullName: "",
+      email: "",
+      dateOfBirth: "",
+      gender: "male",
+      otp: "",
+    };
+  }
+}
+
+function formatOtpCooldown(seconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+
+  return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
+function parseCooldownSeconds(message: string) {
+  const seconds = Number.parseInt(message, 10);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+}
 
 export function useRegisterCard() {
   const nameId = useId();
@@ -24,18 +98,40 @@ export function useRegisterCard() {
   const dobId = useId();
   const otpId = useId();
 
-  const emailInputRef = useRef<HTMLInputElement | null>(null);
-
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const draft = useMemo(() => readRegisterDraft(), []);
+  const [fullName, setFullName] = useState(draft.fullName);
+  const [email, setEmail] = useState(draft.email);
+  const [gender, setGender] = useState(draft.gender);
   const [passwordValue, setPasswordValue] = useState("");
-  const [otpValue, setOtpValue] = useState("");
+  const [otpValue, setOtpValue] = useState(draft.otp);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<RegisterCardFeedback>(null);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [otpCooldownSeconds, setOtpCooldownSeconds] = useState(0);
 
   const dateOfBirthField = useDateOfBirthField();
+
+  useEffect(() => {
+    if (!draft.dateOfBirth) return;
+    dateOfBirthField.setFromDisplayInput(draft.dateOfBirth);
+  }, [dateOfBirthField, draft.dateOfBirth]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    window.sessionStorage.setItem(
+      REGISTER_DRAFT_STORAGE_KEY,
+      JSON.stringify({
+        fullName,
+        email,
+        dateOfBirth: dateOfBirthField.displayValue,
+        gender,
+        otp: otpValue,
+      }),
+    );
+  }, [dateOfBirthField.displayValue, email, fullName, gender, otpValue]);
 
   function togglePasswordVisibility() {
     setShowPassword((value) => !value);
@@ -67,15 +163,12 @@ export function useRegisterCard() {
   }, [otpCooldownSeconds]);
 
   const otpCooldownLabel = useMemo(() => {
-    const minutes = Math.floor(otpCooldownSeconds / 60);
-    const seconds = otpCooldownSeconds % 60;
-    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    return formatOtpCooldown(otpCooldownSeconds);
   }, [otpCooldownSeconds]);
 
   async function handleSendOtp() {
     setFeedback(null);
 
-    const email = String(emailInputRef.current?.value ?? "").trim();
     if (!email) {
       setFeedback({ type: "error", message: "Vui lòng nhập email để nhận OTP" });
       return;
@@ -89,14 +182,24 @@ export function useRegisterCard() {
     const result = await sendRegisterOtp({ email });
     setIsSendingOtp(false);
 
-    // Only show error feedback. Successful send will start cooldown silently.
-    if (!result.ok) {
-      setFeedback({ type: "error", message: result.message });
+    if (result.code === 1036) {
+      const secondsRemaining = parseCooldownSeconds(result.message);
+      if (secondsRemaining !== null) {
+        setOtpCooldownSeconds(secondsRemaining);
+        setFeedback({
+          type: "error",
+          message: `Vui lòng chờ ${formatOtpCooldown(secondsRemaining)} để gửi lại OTP`,
+        });
+        return;
+      }
     }
 
-    if (result.ok) {
-      setOtpCooldownSeconds(5 * 60);
+    if (!result.ok) {
+      setFeedback({ type: "error", message: result.message });
+      return;
     }
+
+    setOtpCooldownSeconds(OTP_COOLDOWN_SECONDS);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -105,23 +208,17 @@ export function useRegisterCard() {
 
     const form = event.currentTarget;
     const data = new FormData(form);
-
-    const fullName = String(data.get("fullName") ?? "");
-    const email = String(data.get("email") ?? "");
     const password = String(data.get("password") ?? "");
     const confirmPassword = String(data.get("confirmPassword") ?? "");
-    const dateOfBirthRaw = String(data.get("dateOfBirth") ?? "");
-    const genderRaw = String(data.get("gender") ?? "male");
-    const otp = String(data.get("otp") ?? "");
 
     const { request, errorMessage } = buildRegisterRequest({
       fullName,
       email,
       password,
       confirmPassword,
-      dateOfBirthRaw,
-      genderRaw,
-      otp,
+      dateOfBirthRaw: dateOfBirthField.displayValue,
+      genderRaw: gender,
+      otp: otpValue,
     });
 
     if (!request) {
@@ -143,17 +240,13 @@ export function useRegisterCard() {
       // Reset the form UI but keep the email field filled so user can proceed.
       form.reset();
       resetFormState();
-      try {
-        if (emailInputRef.current) {
-          emailInputRef.current.value = request.email ?? "";
-        }
-      } catch {
-        // noop
-      }
+      setFullName("");
+      setEmail(request.email ?? "");
+      setGender("male");
+      setOtpValue("");
+      dateOfBirthField.reset();
     }
   }
-
-  const genderDefault: RegisterGender = mapGenderRawToApiGender("male");
 
   const isOtpCooldownActive = otpCooldownSeconds > 0;
 
@@ -166,7 +259,12 @@ export function useRegisterCard() {
       dobId,
       otpId,
     },
-    emailInputRef,
+    fullName,
+    setFullName,
+    email,
+    setEmail,
+    gender,
+    setGender,
     showPassword,
     showConfirmPassword,
     togglePasswordVisibility,
@@ -184,6 +282,6 @@ export function useRegisterCard() {
     handleSubmit,
     handleSendOtp,
     dateOfBirthField,
-    genderDefault,
+    genderDefault: gender as RegisterGender,
   };
 }

@@ -1,58 +1,117 @@
 "use client";
 
+import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
+
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
   ChevronDown,
+  ChevronRight,
   LogOut,
   Search,
   Ticket,
   User,
   UserRound,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
-import Logo from "@/components/logo";
+import Logo from "@/components/shared/logo";
 import Avatar from "@/components/user/avatar";
-import { CATEGORY_LABELS, type Category } from "@/constants";
+import { CATEGORY_LABELS, type Category } from "@/features/events/types";
 import { useMe } from "@/features/auth/hooks/use-me";
 import { useLogout } from "@/features/auth/hooks/use-logout";
-import { MY_INFO_QUERY_KEY } from "@/features/user/hooks/use-my-info";
-import { getMyInfo, type Info } from "@/features/user/services/get-my-info";
+import { getEvents } from "@/features/events/services/get-events";
 
-export default function NavBar() {
-    const [logoSize, setLogoSize] = useState({
-    width: 220,
-    height: 88,
-  });
+type NavBarProps = {
+  searchValue?: string;
+  onSearchChange?: (value: string) => void;
+  searchPlaceholder?: string;
+  searchAriaLabel?: string;
+};
 
-  useEffect(() => {
-    const updateLogoSize = () => {
-      if (window.innerWidth < 640) {
-        setLogoSize({ width: 140, height: 56 });
-      } else if (window.innerWidth < 768) {
-        setLogoSize({ width: 180, height: 72 });
-      } else if (window.innerWidth < 1024) {
-        setLogoSize({ width: 220, height: 88 });
-      } else {
-        setLogoSize({ width: 260, height: 104 });
-      }
-    };
+const EVENT_SUGGESTION_LIMIT = 5;
 
-    updateLogoSize();
+function buildEventsHref(searchText: string, category?: Category): string {
+  const params = new URLSearchParams();
+  const normalizedSearch = searchText.trim();
 
-    window.addEventListener("resize", updateLogoSize);
+  if (normalizedSearch) params.set("name", normalizedSearch);
+  if (category) params.set("type", category);
 
-    return () => {
-      window.removeEventListener("resize", updateLogoSize);
-    };
-  }, []);
+  const query = params.toString();
+  return query ? `/events?${query}` : "/events";
+}
+
+export default function NavBar({
+  searchValue,
+  onSearchChange,
+  searchPlaceholder = "Tìm kiếm sự kiện, nghệ sĩ, địa điểm...",
+  searchAriaLabel = "Tìm kiếm",
+}: NavBarProps) {
   const { data: me, isLoading } = useMe();
   const { logout } = useLogout();
-  const categories = Object.entries(CATEGORY_LABELS) as Array<[Category, string]>;
+  const router = useRouter();
+  const categories = useMemo(
+    () => Object.entries(CATEGORY_LABELS) as Array<[Category, string]>,
+    [],
+  );
 
+  const [localSearch, setLocalSearch] = useState(searchValue ?? "");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  const searchText = searchValue ?? localSearch;
+  const normalizedSearch = searchText.trim();
 
   const avatarSrc = me?.avatarUrl || "/default-avatar.svg";
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(normalizedSearch);
+    }, 400);
+
+    return () => window.clearTimeout(timer);
+  }, [normalizedSearch]);
+
+  const suggestionsQuery = useQuery({
+    queryKey: ["navbar-event-suggestions", debouncedSearch],
+    enabled: debouncedSearch.length > 0,
+    queryFn: async () => {
+      const result = await getEvents({
+        name: debouncedSearch,
+        page: 1,
+        size: EVENT_SUGGESTION_LIMIT,
+      });
+
+      if (!result.ok || !result.data) {
+        throw new Error(result.message);
+      }
+
+      return result.data.result.content.slice(0, EVENT_SUGGESTION_LIMIT);
+    },
+  });
+
+  const suggestions = suggestionsQuery.data ?? [];
+  const showSuggestions =
+    isSearchFocused && normalizedSearch.length > 0 && suggestions.length > 0;
+  const handleSearchChange = (value: string) => {
+    if (onSearchChange) {
+      onSearchChange(value);
+      return;
+    }
+
+    setLocalSearch(value);
+  };
+
+  const handleSearchKeyDown = (
+    event: KeyboardEvent<HTMLInputElement>,
+  ) => {
+    if (event.key !== "Enter") return;
+
+    event.preventDefault();
+    setIsSearchFocused(false);
+    router.push(buildEventsHref(searchText));
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -71,13 +130,13 @@ export default function NavBar() {
           <div className="absolute left-0 mt-2 w-[min(92vw,44rem)] overflow-hidden rounded-2xl border border-border bg-surface/90 p-2 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:w-[min(92vw,36rem)] lg:w-2xl">
             <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-3">
               {categories.map(([key, label]) => (
-              <a
+                <Link
                   key={key}
-                  href="#"
+                  href={buildEventsHref(searchText, key)}
                   className="rounded-xl px-3 py-2 text-sm text-foreground/80 transition hover:bg-surface-2/70 hover:text-foreground"
               >
                   {label}
-                </a>
+                </Link>
               ))}
             </div>
           </div>
@@ -87,10 +146,47 @@ export default function NavBar() {
           <div className="group relative w-full max-w-2xl">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/50" />
             <input
-              aria-label="Tìm kiếm"
-              placeholder="Tìm kiếm sự kiện, nghệ sĩ, địa điểm..."
+              aria-label={searchAriaLabel}
+              placeholder={searchPlaceholder}
+              value={searchText}
+              onChange={(event) => handleSearchChange(event.currentTarget.value)}
+              onKeyDown={handleSearchKeyDown}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => {
+                window.setTimeout(() => setIsSearchFocused(false), 120);
+              }}
               className="h-11 w-full rounded-full border border-border bg-surface/60 pl-11 pr-4 text-sm text-foreground/90 outline-none transition focus:border-primary/60 focus:ring-4 focus:ring-primary/15"
             />
+
+            {showSuggestions ? (
+              <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-40 overflow-hidden rounded-3xl border border-border bg-surface/90 shadow-[0_16px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+                <div className="px-4 pt-4 text-xs font-bold uppercase tracking-[0.2em] text-muted">
+                  Gợi ý sự kiện
+                </div>
+                <div className="py-2">
+                  {suggestions.map((event) => (
+                    <Link
+                      key={event.id}
+                      href={`/events/${event.id}`}
+                      className="flex items-start gap-3 px-4 py-3 text-left transition hover:bg-surface-2/70"
+                    >
+                      <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-border bg-surface/60 text-xs font-bold text-primary">
+                        {String(event.title).slice(0, 2).toUpperCase()}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold text-foreground">
+                          {event.title}
+                        </span>
+                        <span className="mt-1 block truncate text-xs text-muted">
+                          {event.venue}
+                        </span>
+                      </span>
+                      <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-foreground/45" />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
 

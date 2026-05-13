@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Ticket, User } from "lucide-react";
+import { KeyRound, Ticket, User } from "lucide-react";
 
 const navItems = [
   {
@@ -17,6 +17,12 @@ const navItems = [
     href: "/profile/tickets",
     icon: Ticket,
     match: (pathname: string) => pathname.startsWith("/profile/tickets"),
+  },
+  {
+    label: "Đổi mật khẩu",
+    href: "/profile/change-password",
+    icon: KeyRound,
+    match: (pathname: string) => pathname.startsWith("/profile/change-password"),
   },
 ] as const;
 

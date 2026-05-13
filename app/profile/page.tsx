@@ -1,4 +1,4 @@
-import NavBar from "@/components/navbar";
+import NavBar from "@/components/shared/navbar";
 import ProfileDashboard from "@/features/user/components/profile-dashboard";
 
 export default function ProfilePage() {
