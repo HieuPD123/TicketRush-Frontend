@@ -1,7 +1,7 @@
 import Footer from "@/components/shared/footer";
 import NavBar from "@/components/shared/navbar";
 
-import EventDetailScreen from "./event-detail-screen";
+import EventDetailScreen from "../../../features/events/components/event-detail-screen";
 
 export default async function Page({
   params,

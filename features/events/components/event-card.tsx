@@ -28,7 +28,7 @@ export default function EventCard({
     return (
       <motion.article
         layout
-        whileHover={{ scale: 1.01, y: -1 }}
+        whileHover={{y: -1 }}
         transition={{ type: "spring", stiffness: 260, damping: 22 }}
         className="group relative overflow-hidden rounded-3xl border border-border bg-surface/55 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl"
       >
@@ -43,6 +43,7 @@ export default function EventCard({
               priority={priority}
               loading={priority ? "eager" : "lazy"}
               unoptimized={isRemoteImage}
+              style={{ transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}
             />
             <div
               aria-hidden
@@ -95,25 +96,28 @@ export default function EventCard({
   return (
     <motion.article
       layout
-      whileHover={{ scale: 1.02, y: -2 }}
+      whileHover={{y: -2 }}
       transition={{ type: "spring", stiffness: 250, damping: 20 }}
       className="group relative overflow-hidden rounded-3xl border border-border bg-surface/55 shadow-[0_18px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl"
     >
-      <div className="relative aspect-video w-full overflow-hidden">
-        <Image
-          src={data.imageSrc}
-          alt={data.title}
-          fill
-          sizes="(max-width: 1024px) 100vw, 33vw"
-          className="object-cover transition duration-500 group-hover:scale-[1.05]"
-          priority={priority}
-          loading={priority ? "eager" : "lazy"}
-          unoptimized={isRemoteImage}
-        />
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-linear-to-t from-background/80 via-background/10 to-transparent"
-        />
+      <div className="relative aspect-video w-full overflow-hidden rounded-t-3xl">
+        <div className="absolute inset-0 z-10 pointer-events-none transition duration-500 group-hover:scale-[1.05] origin-center">
+          <div className="absolute inset-0 bg-linear-to-t from-background/80 via-background/10 to-transparent" />
+        </div>
+
+        <div className="relative h-full w-full">
+          <Image
+            src={data.imageSrc}
+            alt={data.title}
+            fill
+            sizes="(max-width: 1024px) 100vw, 33vw"
+            className="object-cover transition duration-500 group-hover:scale-[1.05]"
+            priority={priority}
+            loading={priority ? "eager" : "lazy"}
+            unoptimized={isRemoteImage}
+            style={{ transform: 'translateZ(0)', backfaceVisibility: 'hidden', display: 'block' }}
+          />
+        </div>
       </div>
 
       <div className="relative p-5">
