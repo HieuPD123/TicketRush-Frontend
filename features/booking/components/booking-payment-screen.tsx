@@ -12,7 +12,7 @@ import { formatPriceVND } from "@/features/events/utils/format-price";
 import { useBookingPayment } from "@/features/booking/hooks/use-booking-payment";
 
 type BookingPaymentScreenProps = {
-  eventId: string;
+  eventId: number;
 };
 
 const PAYMENT_METHODS = [
@@ -26,31 +26,25 @@ export default function BookingPaymentScreen({ eventId }: BookingPaymentScreenPr
   const [draft, setDraft] = useState<BookingDraft | null>(null);
   const [method, setMethod] = useState<(typeof PAYMENT_METHODS)[number]["id"]>("card");
 
-  const numericEventId = Number.parseInt(eventId, 10);
   const { event, loading: eventLoading } = useGetEventById(eventId);
   const { state, toggleCancelDialog, confirmBooking, cancelAndBack } = useBookingPayment(
-    eventId,
-    () => {
-      router.push("/");
-    },
+    () => router.push("/"),
   );
 
   useEffect(() => {
     const stored = readBookingDraft();
-    if (!stored || stored.eventId !== numericEventId) {
+    if (!stored || stored.eventId !== eventId) {
       setDraft(null);
       return;
     }
-
     setDraft(stored);
-  }, [numericEventId]);
+  }, [eventId]);
 
   const selectedSeats = draft?.seats ?? [];
-  const subtotal = useMemo(
+  const total = useMemo(
     () => selectedSeats.reduce((sum, seat) => sum + seat.price, 0),
     [selectedSeats],
   );
-  const total = subtotal;
 
   const eventDateLabel = event?.startTime
     ? formatIsoToDobDisplay(new Date(event.startTime).toISOString().slice(0, 10))
@@ -59,9 +53,7 @@ export default function BookingPaymentScreen({ eventId }: BookingPaymentScreenPr
     ? new Date(event.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     : "--";
 
-  const handleBack = async () => {
-    toggleCancelDialog();
-  };
+  const handleBack = () => toggleCancelDialog();
 
   const handleConfirmCancel = async () => {
     const result = await cancelAndBack();
@@ -71,17 +63,8 @@ export default function BookingPaymentScreen({ eventId }: BookingPaymentScreenPr
   };
 
   const handlePay = async () => {
-    if (selectedSeats.length === 0 || !Number.isFinite(numericEventId)) {
-      return;
-    }
-
-    if (!draft?.bookingId) {
-      alert("Vui lòng giữ ghế trước khi thanh toán.");
-      return;
-    }
-
+    if (!draft?.bookingId || selectedSeats.length === 0) return;
     const result = await confirmBooking(draft.bookingId);
-
     if (result.success) {
       router.push("/profile/tickets");
     }
@@ -98,22 +81,18 @@ export default function BookingPaymentScreen({ eventId }: BookingPaymentScreenPr
               className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/60 px-4 py-2 text-sm font-semibold text-foreground/80 transition hover:text-foreground"
             >
               <ArrowLeft className="h-4 w-4" />
-              Quay lai
+              Quay lại
             </button>
             <BookingSteps currentStep={2} />
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
             <section className="rounded-3xl border border-border bg-surface/55 p-6 shadow-[0_22px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:p-8">
-              <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-                Thanh toán
-              </h1>
-              <p className="mt-2 text-sm text-muted">
-                Chọn phương thức thanh toán của bạn.
-              </p>
+              <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Thanh toán</h1>
+              <p className="mt-2 text-sm text-muted">Chọn phương thức thanh toán của bạn.</p>
 
               {state.error && (
-                <div className="mt-4 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive flex items-center gap-2">
+                <div className="mt-4 flex items-center gap-2 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                   <AlertCircle className="h-4 w-4 shrink-0" />
                   {state.error}
                 </div>
@@ -128,7 +107,6 @@ export default function BookingPaymentScreen({ eventId }: BookingPaymentScreenPr
                   {PAYMENT_METHODS.map((item) => {
                     const Icon = item.icon;
                     const isSelected = method === item.id;
-
                     return (
                       <button
                         key={item.id}
@@ -152,9 +130,7 @@ export default function BookingPaymentScreen({ eventId }: BookingPaymentScreenPr
                           >
                             <Icon className="h-4 w-4" />
                           </span>
-                          <div className="text-sm font-semibold">
-                            {item.label}
-                          </div>
+                          <div className="text-sm font-semibold">{item.label}</div>
                         </div>
                         <span
                           className={
@@ -186,24 +162,21 @@ export default function BookingPaymentScreen({ eventId }: BookingPaymentScreenPr
                 <h2 className="mt-3 text-lg font-extrabold tracking-tight">
                   {event?.title ?? (eventLoading ? "Đang tải sự kiện..." : "Sự kiện")}
                 </h2>
-
-                <div className="mt-5 space-y-2 text-sm text-foreground/75">
+                <div className="mt-5 border-t border-border/70 pt-4">
                   <div className="flex items-center justify-between text-base font-bold text-foreground">
                     <span>Tổng cộng</span>
                     <span className="text-primary">{formatPriceVND(total)}</span>
                   </div>
                 </div>
-
               </div>
             </aside>
           </div>
         </div>
       </main>
 
-      {/* Cancel Confirmation Dialog */}
       {state.showCancelDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="rounded-2xl border border-border bg-surface/95 p-6 max-w-sm">
+          <div className="max-w-sm rounded-2xl border border-border bg-surface/95 p-6">
             <div className="flex items-center gap-3">
               <AlertCircle className="h-5 w-5 text-warning" />
               <h2 className="text-lg font-bold">Xác nhận hủy đơn đặt vé?</h2>
@@ -211,13 +184,11 @@ export default function BookingPaymentScreen({ eventId }: BookingPaymentScreenPr
             <p className="mt-3 text-sm text-foreground/75">
               Bạn sắp quay lại màn hình nội dung sự kiện, bạn sẽ phải xếp hàng lại từ đầu nếu muốn đặt vé. Bạn có chắc chắn muốn hủy đơn đặt vé này không?
             </p>
-
             {state.error && (
               <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
                 {state.error}
               </div>
             )}
-
             <div className="mt-4 flex gap-2">
               <button
                 type="button"

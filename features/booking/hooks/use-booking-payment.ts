@@ -13,7 +13,7 @@ export type BookingPaymentState = {
   showCancelDialog: boolean;
 };
 
-export function useBookingPayment(eventId: string, onSuccess?: () => void) {
+export function useBookingPayment(onSuccess?: () => void) {
   const [state, setState] = useState<BookingPaymentState>({
     isConfirming: false,
     isCancelling: false,
@@ -21,7 +21,6 @@ export function useBookingPayment(eventId: string, onSuccess?: () => void) {
     showCancelDialog: false,
   });
 
-  const numericEventId = Number.parseInt(eventId, 10);
 
   const toggleCancelDialog = useCallback(() => {
     setState((prev) => ({
@@ -61,7 +60,7 @@ export function useBookingPayment(eventId: string, onSuccess?: () => void) {
 
       return { success: false };
     },
-    [numericEventId, onSuccess],
+    [onSuccess],
   );
 
   const cancelAndBack = useCallback(async () => {
@@ -116,7 +115,7 @@ export function useBookingPayment(eventId: string, onSuccess?: () => void) {
 
       return { success: false };
     }
-  }, [numericEventId]);
+  }, []);
 
   return {
     state,

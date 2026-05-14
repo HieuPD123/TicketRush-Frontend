@@ -1,7 +1,7 @@
 import { Client, type IMessage, type StompSubscription } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL;
+const WS_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL;
 
 type SubscriptionListener = {
   destination: string;
@@ -20,7 +20,7 @@ class WebSocketService {
     if (this.client) return this.client;
 
     if (!WS_URL) {
-      throw new Error("NEXT_PUBLIC_WS_URL is missing");
+      throw new Error("NEXT_PUBLIC_WEBSOCKET_URL is missing");
     }
 
     this.client = new Client({

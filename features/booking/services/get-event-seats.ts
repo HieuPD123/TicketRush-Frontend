@@ -58,43 +58,4 @@ export const getEventSeats = async (eventId: number): Promise<GetEventSeatsResul
     }
 };
 
-// A small client hook for usage in client components.
-import { useEffect, useState } from "react";
 
-export function useEventSeats(eventId?: string | number) {
-    const [seats, setSeats] = useState<Seat[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    useEffect(() => {
-        const numericId = typeof eventId === "string" ? Number.parseInt(eventId, 10) : eventId;
-        if (!numericId || Number.isNaN(Number(numericId))) {
-            setSeats([]);
-            setError("Invalid id");
-            setLoading(false);
-            return;
-        }
-
-        let mounted = true;
-
-        (async () => {
-            setLoading(true);
-            setError(null);
-            const res = await getEventSeats(Number(numericId));
-            if (!mounted) return;
-            if (!res.ok) {
-                setError(res.message || "Không thể tải ghế");
-                setSeats([]);
-            } else {
-                setSeats(res.data);
-            }
-            setLoading(false);
-        })();
-
-        return () => {
-            mounted = false;
-        };
-    }, [eventId]);
-
-    return { seats, loading, error } as const;
-}

@@ -14,7 +14,7 @@ export default async function Page({
     <div className="min-h-dvh">
       <NavBar />
       <main className="pt-24">
-        <EventDetailScreen eventId={id} />
+        <EventDetailScreen eventId={Number(id)} />
       </main>
       <Footer />
     </div>

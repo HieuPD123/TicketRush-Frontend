@@ -7,5 +7,5 @@ export default async function Page({
 }) {
   const { id } = await params;
 
-  return <SeatSelectionScreen eventId={id} />;
+  return <SeatSelectionScreen eventId={Number(id)} />;
 }

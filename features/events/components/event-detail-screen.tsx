@@ -13,7 +13,7 @@ import { useGetEventById } from "@/features/events/services/get-event-by-id";
 import { formatIsoToDobDisplay } from "@/features/auth/utils/date-of-birth";
 import { formatPriceVND } from "@/features/events/utils/format-price";
 
-export default function EventDetailScreen({ eventId }: { eventId: string }) {
+export default function EventDetailScreen({ eventId }: { eventId: number }) {
   const [isHoveringImage, setIsHoveringImage] = useState(false);
   const [isHoveringDetailZone, setIsHoveringDetailZone] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -35,10 +35,9 @@ export default function EventDetailScreen({ eventId }: { eventId: string }) {
   const showDetail = !isDesktop || !isHoveringImage || isHoveringDetailZone;
   
   const relatedEvents = TRENDING_EVENTS;
-  const parsedId = Number.parseInt(eventId, 10);
-  const { event, loading } = useGetEventById(parsedId);
+  const { event, loading } = useGetEventById(eventId);
 
-  const heroImageSrc = event?.posterUrl ?? relatedEvents[Math.abs(parsedId) % Math.max(relatedEvents.length, 1)]?.imageSrc ?? "/events/event-1.svg";
+  const heroImageSrc = event?.posterUrl ?? relatedEvents[Math.abs(eventId) % Math.max(relatedEvents.length, 1)]?.imageSrc ?? "/events/event-1.svg";
 
   const EventMap = dynamic(() => import("./event-map"), { ssr: false });
   

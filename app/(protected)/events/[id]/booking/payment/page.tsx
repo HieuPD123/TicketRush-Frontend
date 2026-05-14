@@ -7,5 +7,5 @@ export default async function Page({
 }) {
   const { id } = await params;
 
-  return <BookingPaymentScreen eventId={id} />;
+  return <BookingPaymentScreen eventId={Number(id)} />;
 }

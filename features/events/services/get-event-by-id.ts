@@ -1,4 +1,5 @@
 import type { Event } from "../types";
+import { useEffect, useState } from "react";
 
 export type GetEventByIdResponse = {
 	code: number;
@@ -49,7 +50,7 @@ export const getEventById = async (id: number): Promise<GetEventByIdResult> => {
 			message: data.message,
 			data,
 		};
-	} catch (err) {
+	} catch {
 		return {
 			ok: false,
 			message: "Không thể kết nối tới server. Vui lòng thử lại sau.",
@@ -58,17 +59,13 @@ export const getEventById = async (id: number): Promise<GetEventByIdResult> => {
 	}
 };
 
-// A small client hook for usage in client components.
-import { useEffect, useState } from "react";
-
-export function useGetEventById(id?: string | number) {
+export function useGetEventById(id: number) {
 	const [event, setEvent] = useState<Event | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
-		const numericId = typeof id === "string" ? Number.parseInt(id, 10) : id;
-		if (!numericId || Number.isNaN(Number(numericId))) {
+		if (!Number.isFinite(id) || id <= 0) {
 			setEvent(null);
 			setError("Invalid id");
 			setLoading(false);
@@ -80,7 +77,7 @@ export function useGetEventById(id?: string | number) {
 		(async () => {
 			setLoading(true);
 			setError(null);
-			const res = await getEventById(Number(numericId));
+			const res = await getEventById(id);
 			if (!mounted) return;
 			if (!res.ok || !res.data) {
 				setError(res.message || "Không thể tải sự kiện");
@@ -98,4 +95,3 @@ export function useGetEventById(id?: string | number) {
 
 	return { event, loading, error } as const;
 }
-
