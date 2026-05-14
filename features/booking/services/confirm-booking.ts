@@ -1,6 +1,6 @@
 import {ApiRespone, HoldSeatsResult as ConfirmBookingResult} from "./hold-seats";
 
-export const confirmBooking = async (bookingId: string): Promise<ConfirmBookingResult> => {
+export const confirmBooking = async (bookingId: number): Promise<ConfirmBookingResult> => {
     const url = `${process.env.NEXT_PUBLIC_BOOKING_URL}/${bookingId}/confirm`;
 
     if (!process.env.NEXT_PUBLIC_BOOKING_URL) {
@@ -14,6 +14,7 @@ export const confirmBooking = async (bookingId: string): Promise<ConfirmBookingR
     try {
         const res = await fetch(url, {
             method: "POST",
+            credentials: "include",
             headers: {
                 Accept: "application/json",
                 "Content-Type": "application/json",

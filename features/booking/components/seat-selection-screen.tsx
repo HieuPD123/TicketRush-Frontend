@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -17,10 +17,11 @@ import {
 import BookingSteps from "@/features/booking/components/booking-steps";
 import { formatIsoToDobDisplay } from "@/features/auth/utils/date-of-birth";
 import { useGetEventById } from "@/features/events/services/get-event-by-id";
-import { useEventSeats } from "@/features/booking/services/get-event-seats";
-import { readBookingDraft, saveBookingDraft } from "@/features/booking/utils/booking-storage";
+import { saveBookingDraft } from "@/features/booking/utils/booking-storage";
+import { holdSeats } from "@/features/booking/services/hold-seats";
 import { formatPriceVND } from "@/features/events/utils/format-price";
 import type { Seat, SeatStatus, Zone } from "@/features/events/types";
+import { useSeatSocket } from "@/features/websocket/hooks/use-seat-socket";
 
 type SeatSelectionScreenProps = {
   eventId: string;
@@ -29,7 +30,6 @@ type SeatSelectionScreenProps = {
 const ZOOM_STEP = 0.1;
 const ZOOM_MIN = 0.8;
 const ZOOM_MAX = 1.4;
-const SERVICE_FEE_RATE = 0.05;
 const DEFAULT_SEAT_COLOR = "#7C3AED";
 
 function rowToLabel(rowNumber: number): string {
@@ -96,13 +96,12 @@ function getSeatStatusLabel(status: SeatStatus): string {
 export default function SeatSelectionScreen({ eventId }: SeatSelectionScreenProps) {
   const router = useRouter();
   const { event, loading: eventLoading } = useGetEventById(eventId);
-  const { seats, loading: seatsLoading, error: seatsError } = useEventSeats(eventId);
+  const { seats, loading: seatsLoading, error: seatsError } = useSeatSocket(eventId);
   const zones = event?.zones ?? [];
   const numericEventId = Number.parseInt(eventId, 10);
 
   const fallbackSeats = useMemo(() => buildFallbackSeats(zones), [zones]);
   const seatInventory = seats.length > 0 ? seats : fallbackSeats;
-
   const zoneBlocks = useMemo(() => {
     if (zones.length === 0) return [];
 
@@ -132,9 +131,7 @@ export default function SeatSelectionScreen({ eventId }: SeatSelectionScreenProp
     return seatInventory.filter((seat) => selected.has(seat.id));
   }, [seatInventory, selectedSeatIds]);
 
-  const subtotal = selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
-  const serviceFee = subtotal > 0 ? Math.round(subtotal * SERVICE_FEE_RATE) : 0;
-  const total = subtotal + serviceFee;
+  const total = selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
 
   const eventDateLabel = event?.startTime
     ? formatIsoToDobDisplay(new Date(event.startTime).toISOString().slice(0, 10))
@@ -144,6 +141,15 @@ export default function SeatSelectionScreen({ eventId }: SeatSelectionScreenProp
     : "--";
 
   const isLoading = eventLoading || seatsLoading;
+
+  useEffect(() => {
+    setSelectedSeatIds((current) =>
+      current.filter((selectedId) => {
+        const seat = seatInventory.find((item) => item.id === selectedId);
+        return seat ? seat.status === "AVAILABLE" : false;
+      }),
+    );
+  }, [seatInventory]);
 
   const handleToggleSeat = (seat: Seat) => {
     const isSelected = selectedSeatIds.includes(seat.id);
@@ -178,23 +184,32 @@ export default function SeatSelectionScreen({ eventId }: SeatSelectionScreenProp
       return;
     }
 
-    const existingDraft = readBookingDraft();
-    const contact = existingDraft?.eventId === numericEventId ? existingDraft.contact : undefined;
+    void (async () => {
+      const seatIds = selectedSeats.map((s) => s.id);
+      const result = await holdSeats({ seatIds });
 
-    saveBookingDraft({
-      eventId: numericEventId,
-      seats: selectedSeats.map((seat) => ({
-        id: seat.id,
-        zoneName: seat.zoneName,
-        label: buildSeatLabel(seat),
-        price: seat.price,
-        rowNumber: seat.rowNumber,
-        colNumber: seat.colNumber,
-      })),
-      contact,
-    });
+      if (!result.ok) {
+        alert(result.message || "Không thể giữ ghế. Vui lòng thử lại.");
+        return;
+      }
 
-    router.push(`/events/${eventId}/booking/details`);
+      const bookingId = result.data?.result?.id;
+
+      saveBookingDraft({
+        eventId: numericEventId,
+        seats: selectedSeats.map((seat) => ({
+          id: seat.id,
+          zoneName: seat.zoneName,
+          label: buildSeatLabel(seat),
+          price: seat.price,
+          rowNumber: seat.rowNumber,
+          colNumber: seat.colNumber,
+        })),
+        bookingId,
+      });
+
+      router.push(`/events/${eventId}/booking/payment`);
+    })();
   };
 
   return (
@@ -223,7 +238,7 @@ export default function SeatSelectionScreen({ eventId }: SeatSelectionScreenProp
               </div>
 
               <div className="mt-8 space-y-10" style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}>
-                {zoneBlocks.length === 0 ? (
+                {isLoading && seatInventory.length === 0 ? (
                   <div className="rounded-2xl border border-border bg-surface/40 px-6 py-10 text-center text-sm text-muted">
                     {isLoading ? "Đang tải sơ đồ chỗ ngồi..." : "Sơ đồ chỗ ngồi chưa sẵn sàng."}
                   </div>
@@ -408,14 +423,6 @@ export default function SeatSelectionScreen({ eventId }: SeatSelectionScreenProp
               </div>
 
               <div className="mt-6 space-y-2 border-t border-border/70 pt-4 text-sm text-foreground/70">
-                <div className="flex items-center justify-between">
-                  <span>Tạm tính</span>
-                  <span>{formatPriceVND(subtotal)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Phí dịch vụ</span>
-                  <span>{formatPriceVND(serviceFee)}</span>
-                </div>
                 <div className="flex items-center justify-between text-base font-bold text-foreground">
                   <span>Tổng cộng</span>
                   <span className="text-primary">{formatPriceVND(total)}</span>

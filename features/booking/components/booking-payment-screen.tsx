@@ -2,24 +2,23 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CreditCard, ShieldCheck, Wallet } from "lucide-react";
+import { ArrowLeft, CreditCard, ShieldCheck, Wallet, AlertCircle } from "lucide-react";
 
 import BookingSteps from "@/features/booking/components/booking-steps";
-import { readBookingDraft, saveBookingDraft, type BookingDraft } from "@/features/booking/utils/booking-storage";
+import { readBookingDraft, type BookingDraft } from "@/features/booking/utils/booking-storage";
 import { useGetEventById } from "@/features/events/services/get-event-by-id";
 import { formatIsoToDobDisplay } from "@/features/auth/utils/date-of-birth";
 import { formatPriceVND } from "@/features/events/utils/format-price";
-
-const SERVICE_FEE_RATE = 0.05;
+import { useBookingPayment } from "@/features/booking/hooks/use-booking-payment";
 
 type BookingPaymentScreenProps = {
   eventId: string;
 };
 
 const PAYMENT_METHODS = [
-  { id: "card", label: "The tin dung", icon: CreditCard },
-  { id: "wallet", label: "Vi dien tu", icon: Wallet },
-  { id: "bank", label: "Chuyen khoan", icon: ShieldCheck },
+  { id: "card", label: "Thẻ tín dụng", icon: CreditCard },
+  { id: "wallet", label: "Ví điện tử", icon: Wallet },
+  { id: "bank", label: "Chuyển khoản", icon: ShieldCheck },
 ] as const;
 
 export default function BookingPaymentScreen({ eventId }: BookingPaymentScreenProps) {
@@ -29,6 +28,12 @@ export default function BookingPaymentScreen({ eventId }: BookingPaymentScreenPr
 
   const numericEventId = Number.parseInt(eventId, 10);
   const { event, loading: eventLoading } = useGetEventById(eventId);
+  const { state, toggleCancelDialog, confirmBooking, cancelAndBack } = useBookingPayment(
+    eventId,
+    () => {
+      router.push("/");
+    },
+  );
 
   useEffect(() => {
     const stored = readBookingDraft();
@@ -45,8 +50,7 @@ export default function BookingPaymentScreen({ eventId }: BookingPaymentScreenPr
     () => selectedSeats.reduce((sum, seat) => sum + seat.price, 0),
     [selectedSeats],
   );
-  const serviceFee = subtotal > 0 ? Math.round(subtotal * SERVICE_FEE_RATE) : 0;
-  const total = subtotal + serviceFee;
+  const total = subtotal;
 
   const eventDateLabel = event?.startTime
     ? formatIsoToDobDisplay(new Date(event.startTime).toISOString().slice(0, 10))
@@ -55,20 +59,32 @@ export default function BookingPaymentScreen({ eventId }: BookingPaymentScreenPr
     ? new Date(event.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     : "--";
 
-  const handleBack = () => {
-    router.push(`/events/${eventId}/booking/details`);
+  const handleBack = async () => {
+    toggleCancelDialog();
   };
 
-  const handlePay = () => {
+  const handleConfirmCancel = async () => {
+    const result = await cancelAndBack();
+    if (result?.success) {
+      router.push(`/events/${eventId}`);
+    }
+  };
+
+  const handlePay = async () => {
     if (selectedSeats.length === 0 || !Number.isFinite(numericEventId)) {
       return;
     }
 
-    saveBookingDraft({
-      eventId: numericEventId,
-      seats: selectedSeats,
-      contact: draft?.contact,
-    });
+    if (!draft?.bookingId) {
+      alert("Vui lòng giữ ghế trước khi thanh toán.");
+      return;
+    }
+
+    const result = await confirmBooking(draft.bookingId);
+
+    if (result.success) {
+      router.push("/profile/tickets");
+    }
   };
 
   return (
@@ -84,21 +100,28 @@ export default function BookingPaymentScreen({ eventId }: BookingPaymentScreenPr
               <ArrowLeft className="h-4 w-4" />
               Quay lai
             </button>
-            <BookingSteps currentStep={3} />
+            <BookingSteps currentStep={2} />
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
             <section className="rounded-3xl border border-border bg-surface/55 p-6 shadow-[0_22px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:p-8">
               <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-                Thanh toan
+                Thanh toán
               </h1>
               <p className="mt-2 text-sm text-muted">
-                Chon phuong thuc thanh toan yeu thich cua ban.
+                Chọn phương thức thanh toán của bạn.
               </p>
+
+              {state.error && (
+                <div className="mt-4 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  {state.error}
+                </div>
+              )}
 
               {!draft ? (
                 <div className="mt-6 rounded-2xl border border-border bg-surface/40 px-4 py-6 text-sm text-muted">
-                  Chua co ghe da chon. Vui long quay lai buoc chon ghe.
+                  Chưa có ghế đã chọn. Vui lòng quay lại bước chọn ghế.
                 </div>
               ) : (
                 <div className="mt-6 space-y-3">
@@ -148,10 +171,10 @@ export default function BookingPaymentScreen({ eventId }: BookingPaymentScreenPr
               <button
                 type="button"
                 onClick={handlePay}
-                disabled={!draft || selectedSeats.length === 0}
+                disabled={!draft || selectedSeats.length === 0 || state.isConfirming}
                 className="mt-6 inline-flex h-12 w-full items-center justify-center rounded-full bg-linear-to-r from-primary to-secondary text-sm font-bold text-foreground shadow-[0_0_30px_rgba(124,58,237,0.35)] transition disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Thanh toan ngay
+                {state.isConfirming ? "Đang xử lý..." : "Thanh toán ngay"}
               </button>
             </section>
 
@@ -161,39 +184,61 @@ export default function BookingPaymentScreen({ eventId }: BookingPaymentScreenPr
                   {eventDateLabel} • {eventTimeLabel}
                 </div>
                 <h2 className="mt-3 text-lg font-extrabold tracking-tight">
-                  {event?.title ?? (eventLoading ? "Dang tai su kien..." : "Su kien")}
+                  {event?.title ?? (eventLoading ? "Đang tải sự kiện..." : "Sự kiện")}
                 </h2>
 
                 <div className="mt-5 space-y-2 text-sm text-foreground/75">
-                  <div className="flex items-center justify-between">
-                    <span>Tam tinh</span>
-                    <span>{formatPriceVND(subtotal)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Phi dich vu</span>
-                    <span>{formatPriceVND(serviceFee)}</span>
-                  </div>
                   <div className="flex items-center justify-between text-base font-bold text-foreground">
-                    <span>Tong cong</span>
+                    <span>Tổng cộng</span>
                     <span className="text-primary">{formatPriceVND(total)}</span>
                   </div>
                 </div>
 
-                {draft?.contact ? (
-                  <div className="mt-5 rounded-2xl border border-border bg-surface/40 px-4 py-4 text-sm text-foreground/80">
-                    <div className="font-semibold text-foreground">Thong tin khach hang</div>
-                    <div className="mt-2 space-y-1 text-xs text-muted">
-                      <div>{draft.contact.fullName || "Chua co ten"}</div>
-                      <div>{draft.contact.email || "Chua co email"}</div>
-                      <div>{draft.contact.phone || "Chua co so dien thoai"}</div>
-                    </div>
-                  </div>
-                ) : null}
               </div>
             </aside>
           </div>
         </div>
       </main>
+
+      {/* Cancel Confirmation Dialog */}
+      {state.showCancelDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="rounded-2xl border border-border bg-surface/95 p-6 max-w-sm">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-warning" />
+              <h2 className="text-lg font-bold">Xác nhận hủy đơn đặt vé?</h2>
+            </div>
+            <p className="mt-3 text-sm text-foreground/75">
+              Bạn sắp quay lại màn hình nội dung sự kiện, bạn sẽ phải xếp hàng lại từ đầu nếu muốn đặt vé. Bạn có chắc chắn muốn hủy đơn đặt vé này không?
+            </p>
+
+            {state.error && (
+              <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                {state.error}
+              </div>
+            )}
+
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={toggleCancelDialog}
+                disabled={state.isCancelling}
+                className="flex-1 rounded-lg border border-border px-3 py-2 text-sm font-semibold transition hover:bg-surface/80 disabled:opacity-50"
+              >
+                Tiếp tục
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmCancel}
+                disabled={state.isCancelling}
+                className="flex-1 rounded-lg bg-destructive px-3 py-2 text-sm font-semibold text-destructive-foreground transition hover:bg-destructive/90 disabled:opacity-50"
+              >
+                {state.isCancelling ? "Đang hủy..." : "Hủy đơn"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,13 +1,12 @@
 "use client";
 
 type BookingStepsProps = {
-  currentStep: 1 | 2 | 3;
+  currentStep: 1 | 2;
 };
 
 const steps = [
-  { id: 1, label: "Chon ghe" },
-  { id: 2, label: "Thong tin" },
-  { id: 3, label: "Thanh toan" },
+  { id: 1, label: "Chọn ghế" },
+  { id: 2, label: "Thanh toán" },
 ] as const;
 
 export default function BookingSteps({ currentStep }: BookingStepsProps) {
@@ -18,11 +17,11 @@ export default function BookingSteps({ currentStep }: BookingStepsProps) {
           <span
             className={
               "grid h-8 w-8 place-items-center rounded-full border text-[0.6rem] font-bold transition " +
-              (step.id === currentStep
-                ? "border-primary/70 bg-primary text-background"
-                : step.id < currentStep
-                  ? "border-primary/40 text-primary"
-                  : "border-border text-muted")
+                  (step.id === currentStep
+                    ? "border-primary/70 bg-primary text-background"
+                    : step.id < currentStep
+                      ? "border-primary/40 text-primary"
+                      : "border-border text-muted")
             }
           >
             {step.id}

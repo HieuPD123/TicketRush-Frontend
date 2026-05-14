@@ -11,13 +11,13 @@ export type CancelBookingResult = {
     data: ApiResponse | null;
 };
 
-export async function cancelBooking(bookingId: string): Promise<CancelBookingResult> {
+export async function cancelBooking(bookingId: number): Promise<CancelBookingResult> {
     const url = `${process.env.NEXT_PUBLIC_BOOKING_URL}/${bookingId}`;
 
     if (!process.env.NEXT_PUBLIC_BOOKING_URL) {
         return {
             ok: false,
-            message: "Booking API URL is not configured",
+            message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
             data: null,
         };
     }
@@ -25,6 +25,7 @@ export async function cancelBooking(bookingId: string): Promise<CancelBookingRes
     try {
         const res = await fetch(url, {
             method: "DELETE",
+            credentials: "include",
             headers: {
                 "Content-Type": "application/json",
             },
@@ -48,7 +49,7 @@ export async function cancelBooking(bookingId: string): Promise<CancelBookingRes
     } catch (error) {
         return {
             ok: false,
-            message: "An error occurred while cancelling the booking",
+            message: "Có lỗi xảy ra khi hủy booking",
             data: null,
         };
     }

@@ -18,6 +18,7 @@ export type BookingDraft = {
   eventId: number;
   seats: BookingSeatDraft[];
   contact?: BookingContact;
+  bookingId?: number;
 };
 
 const BOOKING_STORAGE_KEY = "ticketrush.booking.draft";
@@ -28,6 +29,8 @@ function isValidDraft(value: unknown): value is BookingDraft {
   const draft = value as BookingDraft;
   if (!Number.isFinite(draft.eventId)) return false;
   if (!Array.isArray(draft.seats)) return false;
+
+  if (draft.bookingId !== undefined && !Number.isFinite(draft.bookingId)) return false;
 
   return true;
 }
