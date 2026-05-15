@@ -10,6 +10,11 @@ import { useGetEventById } from "@/features/events/services/get-event-by-id";
 import { formatIsoToDobDisplay } from "@/features/auth/utils/date-of-birth";
 import { formatPriceVND } from "@/features/events/utils/format-price";
 import { useBookingPayment } from "@/features/booking/hooks/use-booking-payment";
+import { useTimerToast } from "@/features/queue/hooks/use-timer-toast";
+import TimerToast from "@/features/queue/components/timer-toast";
+
+const PAYMENT_TOAST_MS = 10 * 1000; // 10 giây
+
 
 type BookingPaymentScreenProps = {
   eventId: number;
@@ -27,8 +32,15 @@ export default function BookingPaymentScreen({ eventId }: BookingPaymentScreenPr
   const [method, setMethod] = useState<(typeof PAYMENT_METHODS)[number]["id"]>("card");
 
   const { event, loading: eventLoading } = useGetEventById(eventId);
-  
+
   const { state, toggleCancelDialog, confirmBooking, cancelAndBack } = useBookingPayment();
+  const { toastState, show: showToast, dismiss: dismissToast } = useTimerToast();
+
+  // Auto-close progress-border toast on mount
+  useEffect(() => {
+    showToast({ message: "Bạn có 10 phút để hoàn tất thanh toán", durationMs: PAYMENT_TOAST_MS });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const stored = readBookingDraft();
@@ -74,6 +86,7 @@ export default function BookingPaymentScreen({ eventId }: BookingPaymentScreenPr
 
   return (
     <div className="min-h-dvh">
+      <TimerToast toast={toastState} onDismiss={dismissToast} />
       <main className="pt-10">
         <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 pb-16 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center justify-between gap-4">

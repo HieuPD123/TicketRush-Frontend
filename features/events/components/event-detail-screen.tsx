@@ -1,9 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, Clock, MapPin } from "lucide-react";
 import dynamic from "next/dynamic";
 
@@ -12,12 +12,42 @@ import { TRENDING_EVENTS } from "@/features/events/mock-data";
 import { useGetEventById } from "@/features/events/services/get-event-by-id";
 import { formatIsoToDobDisplay } from "@/features/auth/utils/date-of-birth";
 import { formatPriceVND } from "@/features/events/utils/format-price";
+import { useQueue } from "@/features/queue/hooks/use-queue";
+import QueueScreen from "@/features/queue/components/queue-screen";
 
 export default function EventDetailScreen({ eventId }: { eventId: number }) {
   const [isHoveringImage, setIsHoveringImage] = useState(false);
   const [isHoveringDetailZone, setIsHoveringDetailZone] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [showQueue, setShowQueue] = useState(false);
+  const [queueError, setQueueError] = useState<string | null>(null);
   const router = useRouter();
+
+  const { state: queueState, isGranted, isExpired, joinQueueFlow, leaveQueueFlow } = useQueue(eventId);
+
+  const handleLeaveQueue = async () => {
+    await leaveQueueFlow();
+    setShowQueue(false);
+    setQueueError(null);
+  };
+
+  // When queue grants access → navigate to booking
+  const grantedRef = useRef(false);
+  useEffect(() => {
+    if (isGranted && !grantedRef.current) {
+      grantedRef.current = true;
+      setShowQueue(false);
+      router.push(`/events/${eventId}/booking?granted=1`);
+    }
+  }, [isGranted, eventId, router]);
+
+  // When queue expires → show error, hide queue screen
+  useEffect(() => {
+    if (isExpired) {
+      setShowQueue(false);
+      setQueueError("Hết thời gian chờ. Vui lòng thử lại.");
+    }
+  }, [isExpired]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 1024px)");
@@ -50,7 +80,24 @@ export default function EventDetailScreen({ eventId }: { eventId: number }) {
     : undefined;
   const bookingHref = `/events/${eventId}/booking`;
 
+  const handleBuyTicket = async () => {
+    setQueueError(null);
+    if (event?.queueRequired) {
+      grantedRef.current = false;
+      setShowQueue(true);
+      await joinQueueFlow();
+      // If joinQueueFlow sets error, reflect it
+      if (queueState.error) {
+        setShowQueue(false);
+        setQueueError(queueState.error);
+      }
+    } else {
+      router.push(bookingHref);
+    }
+  };
+
   return (
+    <>
     <div className="pb-16">
       <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="relative">
@@ -65,12 +112,21 @@ export default function EventDetailScreen({ eventId }: { eventId: number }) {
               onMouseEnter={() => isDesktop && setIsHoveringImage(true)}
               onMouseLeave={() => isDesktop && setIsHoveringImage(false)}
             >
+              {loading && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-surface/20">
+                  <motion.div 
+                    animate={{ opacity: [0.3, 0.6, 0.3] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                    className="h-full w-full bg-linear-to-r from-transparent via-white/5 to-transparent"
+                  />
+                </div>
+              )}
               <Image
                 src={heroImageSrc}
                 alt="Poster sự kiện"
                 fill
                 sizes="(max-width: 1024px) 100vw, 1280px"
-                className="object-cover"
+                className={`object-cover transition-opacity duration-700 ${loading ? 'opacity-0' : 'opacity-100'}`}
                 priority
               />
               <div
@@ -123,19 +179,25 @@ export default function EventDetailScreen({ eventId }: { eventId: number }) {
               <div className="text-sm font-semibold text-foreground/85">
                 {minPrice !== undefined ? `Giá vé từ ${formatPriceVND(minPrice)}` : 'Giá vé'}
               </div>
+              {queueError && (
+                <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+                  {queueError}
+                </div>
+              )}
               <motion.button
                 type="button"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.99 }}
                 transition={{ type: "spring", stiffness: 260, damping: 22 }}
-                onClick={() => router.push(bookingHref)}
-                className="cursor-pointer mt-4 inline-flex h-12 w-full items-center justify-center rounded-full bg-linear-to-r from-primary to-secondary text-sm font-bold text-foreground shadow-[0_0_0_1px_rgba(255,255,255,0.06)] outline-none transition focus:ring-4 focus:ring-primary/20"
+                onClick={handleBuyTicket}
+                disabled={queueState.isLoading}
+                className="cursor-pointer mt-4 inline-flex h-12 w-full items-center justify-center rounded-full bg-linear-to-r from-primary to-secondary text-sm font-bold text-foreground shadow-[0_0_0_1px_rgba(255,255,255,0.06)] outline-none transition focus:ring-4 focus:ring-primary/20 disabled:opacity-60 disabled:cursor-not-allowed"
                 style={{
                   boxShadow:
                     "0 0 0 1px rgba(255,255,255,0.06), 0 22px 70px color-mix(in srgb, var(--primary) 20%, transparent)",
                 }}
               >
-                Mua vé ngay
+                {queueState.isLoading ? "Đang vào hàng chờ..." : "Mua vé ngay"}
               </motion.button>
             </div>
           </motion.aside>
@@ -176,7 +238,7 @@ export default function EventDetailScreen({ eventId }: { eventId: number }) {
         <motion.div
           initial="hidden"
           whileInView="show"
-          viewport={{ once: true, amount: 0.2 }}
+          viewport={{ once: true, amount: 0.1 }}
           variants={{
             hidden: { opacity: 0 },
             show: {
@@ -186,20 +248,28 @@ export default function EventDetailScreen({ eventId }: { eventId: number }) {
           }}
           className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3"
         >
-          {relatedEvents.map((event, index) => (
+          {relatedEvents.map((eventItem, index) => (
             <motion.div
-              key={event.title}
+              key={`${eventItem.title}-${index}`}
               variants={{
-                hidden: { opacity: 0, y: 10 },
+                hidden: { opacity: 0, y: 15 },
                 show: { opacity: 1, y: 0 },
               }}
               className="overflow-hidden rounded-3xl"
             >
-              <EventCard data={event} href={`/events/${index + 1}`} />
+              <EventCard data={eventItem} href={`/events/${index + 1}`} />
             </motion.div>
           ))}
         </motion.div>
       </section>
     </div>
+
+      {/* Queue overlay */}
+      <AnimatePresence>
+        {showQueue && (
+          <QueueScreen state={queueState} onLeave={handleLeaveQueue} />
+        )}
+      </AnimatePresence>
+    </>
   );
 }

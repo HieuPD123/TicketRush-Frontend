@@ -42,7 +42,6 @@ export default function EventCard({
               className="object-cover transition duration-500 group-hover:scale-[1.05]"
               priority={priority}
               loading={priority ? "eager" : "lazy"}
-              unoptimized={isRemoteImage}
               style={{ transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}
             />
             <div
@@ -114,7 +113,6 @@ export default function EventCard({
             className="object-cover transition duration-500 group-hover:scale-[1.05]"
             priority={priority}
             loading={priority ? "eager" : "lazy"}
-            unoptimized={isRemoteImage}
             style={{ transform: 'translateZ(0)', backfaceVisibility: 'hidden', display: 'block' }}
           />
         </div>

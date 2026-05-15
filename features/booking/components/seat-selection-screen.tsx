@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
+  AlertCircle,
   ArrowLeft,
   Ban,
   Calendar,
+  LogOut,
   Minus,
   Plus,
   LocateFixed,
@@ -22,6 +24,11 @@ import { holdSeats } from "@/features/booking/services/hold-seats";
 import { formatPriceVND } from "@/features/events/utils/format-price";
 import type { Seat } from "@/features/events/types";
 import { useSeatSocket } from "@/features/websocket/hooks/use-seat-socket";
+import { leaveQueue } from "@/features/queue/services/leave_queue";
+import { useTimerToast } from "@/features/queue/hooks/use-timer-toast";
+import TimerToast from "@/features/queue/components/timer-toast";
+
+const GRANTED_TOAST_MS = 10 * 1000; // 10 giây
 
 type SeatSelectionScreenProps = {
   eventId: number;
@@ -49,12 +56,18 @@ function formatSeatPosition(seat: Seat): string {
 
 export default function SeatSelectionScreen({ eventId }: SeatSelectionScreenProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { event, loading: eventLoading } = useGetEventById(eventId);
   const { seats, seatMap, loading: seatsLoading, error: seatsError } = useSeatSocket(eventId);
   const zones = event?.zones ?? [];
 
   const [selectedSeatIds, setSelectedSeatIds] = useState<number[]>([]);
   const [zoom, setZoom] = useState(1);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+
+  const { toastState, show: showToast, dismiss: dismissToast } = useTimerToast();
+  const toastShownRef = useRef(false);
 
   // O(1) lookup trong render
   const selectedSet = useMemo(() => new Set(selectedSeatIds), [selectedSeatIds]);
@@ -124,7 +137,31 @@ export default function SeatSelectionScreen({ eventId }: SeatSelectionScreenProp
   const handleZoomIn = () => setZoom((c) => Math.min(ZOOM_MAX, c + ZOOM_STEP));
   const handleZoomOut = () => setZoom((c) => Math.max(ZOOM_MIN, c - ZOOM_STEP));
   const handleRecenter = () => setZoom(1);
-  const handleBack = () => router.push(`/events/${eventId}`);
+
+  // Back button: if queueRequired → confirm leave, else navigate directly
+  const handleBack = () => {
+    if (event?.queueRequired) {
+      setShowLeaveDialog(true);
+    } else {
+      router.push(`/events/${eventId}`);
+    }
+  };
+
+  const handleLeaveConfirm = async () => {
+    setIsLeaving(true);
+    await leaveQueue(eventId);
+    setIsLeaving(false);
+    setShowLeaveDialog(false);
+    router.push(`/events/${eventId}`);
+  };
+
+  // Show auto-close progress-border toast when arriving from queue GRANTED
+  useEffect(() => {
+    if (searchParams.get("granted") === "1" && !toastShownRef.current) {
+      toastShownRef.current = true;
+      showToast({ message: "Bạn có 10 phút để chọn ghế", durationMs: GRANTED_TOAST_MS });
+    }
+  }, [searchParams, showToast]);
 
   const handleContinue = () => {
     if (selectedSeats.length === 0) return;
@@ -325,6 +362,59 @@ export default function SeatSelectionScreen({ eventId }: SeatSelectionScreenProp
           </div>
         </div>
       </main>
+
+      {/* Timer toast */}
+      <TimerToast toast={toastState} onDismiss={dismissToast} />
+
+      {/* Leave queue confirmation dialog */}
+      <AnimatePresence>
+        {showLeaveDialog && (
+          <motion.div
+            key="leave-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm"
+          >
+            <motion.div
+              key="leave-dialog"
+              initial={{ opacity: 0, scale: 0.94, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 8 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+              className="w-full max-w-sm rounded-2xl border border-border bg-surface/95 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.6)] backdrop-blur-xl"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-red-500/30 bg-red-500/15">
+                  <LogOut className="h-4 w-4 text-red-400" />
+                </div>
+                <h2 className="text-base font-bold">Rời hàng chờ?</h2>
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-foreground/65">
+                Bạn đã được cấp quyền chọn ghế. Nếu rời đi, bạn sẽ phải xếp hàng lại từ đầu.
+              </p>
+              <div className="mt-5 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowLeaveDialog(false)}
+                  disabled={isLeaving}
+                  className="flex-1 rounded-xl border border-border py-2.5 text-sm font-semibold transition hover:bg-surface/80 disabled:opacity-50"
+                >
+                  Ở lại
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLeaveConfirm}
+                  disabled={isLeaving}
+                  className="flex-1 rounded-xl bg-red-500/90 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500 disabled:opacity-50"
+                >
+                  {isLeaving ? "Đang rời..." : "Rời hàng chờ"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
