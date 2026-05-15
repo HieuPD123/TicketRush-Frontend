@@ -32,7 +32,7 @@ export async function getQueueStatus(eventId: number): Promise<QueueStatusRespon
         const result: QueueStatusResponse = await res.json();
         return result;
     }
-    catch (error) {
+    catch {
         return {
             code: 500,
             message: "Đã xảy ra lỗi khi lấy thông tin hàng chờ. Xin vui lòng thử lại sau.",

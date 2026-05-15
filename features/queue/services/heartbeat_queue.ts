@@ -23,7 +23,7 @@ export async function sendHeartBeat(eventId: number): Promise<HeartBeatResult> {
         });
     const result: HeartBeatResult = await res.json();
         return result;
-    } catch (error) {
+    } catch {
         return {
             code: 500,
             message: "Đã xảy ra lỗi khi giữ vị trí hàng chờ. Xin vui lòng thử lại sau.",

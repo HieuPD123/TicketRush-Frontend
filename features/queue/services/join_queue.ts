@@ -51,7 +51,7 @@ export async function joinQueue(eventId: number): Promise<JoinQueueResult> {
             message: result.message,
             status: result.result,
         };
-    } catch (error) {
+    } catch {
         return {
             ok: false,
             message: "Có lỗi xảy ra khi tham gia hàng đợi",

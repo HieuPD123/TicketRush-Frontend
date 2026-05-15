@@ -41,7 +41,7 @@ export async function getTrendingEvents(): Promise<TrendingEventResponse> {
       result: data.result,
     };
 
-  } catch (error) {
+  } catch {
     return {
       code: 500,
       message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",

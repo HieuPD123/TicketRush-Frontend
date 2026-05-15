@@ -46,7 +46,7 @@ export async function cancelBooking(bookingId: number): Promise<CancelBookingRes
             message: result.message,
             data: result,
         };
-    } catch (error) {
+    } catch {
         return {
             ok: false,
             message: "Có lỗi xảy ra khi hủy booking",

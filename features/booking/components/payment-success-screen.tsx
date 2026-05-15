@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { CheckCircle, Ticket, Home } from "lucide-react";
@@ -18,11 +17,6 @@ export default function PaymentSuccessScreen({
   totalAmount,
 }: PaymentSuccessScreenProps) {
   const router = useRouter();
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    setIsVisible(true);
-  }, []);
 
   const handleViewTickets = () => {
     router.push("/profile/tickets");
@@ -36,7 +30,7 @@ export default function PaymentSuccessScreen({
     <div className="min-h-screen bg-[#0E0E15] flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
-        animate={isVisible ? { opacity: 1, scale: 1 } : {}}
+        animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
         className="w-full max-w-[500px] rounded-3xl border border-purple-500/20 bg-black/40 p-8 shadow-[0_0_50px_rgba(124,58,237,0.15)] backdrop-blur-xl"
       >
@@ -44,7 +38,7 @@ export default function PaymentSuccessScreen({
         <div className="flex justify-center mb-6">
           <motion.div
             initial={{ opacity: 0, scale: 0 }}
-            animate={isVisible ? { opacity: 1, scale: 1 } : {}}
+            animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2, duration: 0.5, ease: "easeOut" }}
             className="relative"
           >
@@ -58,7 +52,7 @@ export default function PaymentSuccessScreen({
         {/* Headline */}
         <motion.h1
           initial={{ opacity: 0, y: 10 }}
-          animate={isVisible ? { opacity: 1, y: 0 } : {}}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.4 }}
           className="text-center text-4xl font-bold text-white tracking-tight"
         >
@@ -68,7 +62,7 @@ export default function PaymentSuccessScreen({
         {/* Subtext */}
         <motion.p
           initial={{ opacity: 0, y: 10 }}
-          animate={isVisible ? { opacity: 1, y: 0 } : {}}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.4 }}
           className="mt-4 text-center text-gray-300 text-sm leading-relaxed"
         >
@@ -79,7 +73,7 @@ export default function PaymentSuccessScreen({
         {/* Order Summary */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
-          animate={isVisible ? { opacity: 1, y: 0 } : {}}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5, duration: 0.4 }}
           className="mt-8 rounded-2xl bg-black/40 p-6 border border-purple-500/10"
         >
@@ -116,7 +110,7 @@ export default function PaymentSuccessScreen({
         {/* Action Buttons */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
-          animate={isVisible ? { opacity: 1, y: 0 } : {}}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6, duration: 0.4 }}
           className="mt-8 space-y-3"
         >

@@ -6,7 +6,7 @@ import { ArrowLeft, CreditCard, ShieldCheck, Wallet, AlertCircle } from "lucide-
 
 import BookingSteps from "@/features/booking/components/booking-steps";
 import { readBookingDraft, type BookingDraft } from "@/features/booking/utils/booking-storage";
-import { useGetEventById } from "@/features/events/services/get-event-by-id";
+import { useGetEventById } from "@/features/events/hooks/use-get-event-by-id";
 import { formatIsoToDobDisplay } from "@/features/auth/utils/date-of-birth";
 import { formatPriceVND } from "@/features/events/utils/format-price";
 import { useBookingPayment } from "@/features/booking/hooks/use-booking-payment";
@@ -51,7 +51,10 @@ export default function BookingPaymentScreen({ eventId }: BookingPaymentScreenPr
     setDraft(stored);
   }, [eventId]);
 
-  const selectedSeats = draft?.seats ?? [];
+  const selectedSeats = useMemo(
+    () => draft?.seats ?? [],
+    [draft?.seats],
+  );
   const total = useMemo(
     () => selectedSeats.reduce((sum, seat) => sum + seat.price, 0),
     [selectedSeats],

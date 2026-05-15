@@ -7,9 +7,15 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ChevronDown,
   ChevronRight,
+  Flame,
+  Globe2,
+  LayoutGrid,
   LogOut,
+  Music,
   Search,
+  Theater,
   Ticket,
+  Trophy,
   User,
   UserRound,
 } from "lucide-react";
@@ -21,6 +27,7 @@ import { CATEGORY_LABELS, type Category } from "@/features/events/types";
 import { useMe } from "@/features/auth/hooks/use-me";
 import { useLogout } from "@/features/auth/hooks/use-logout";
 import { getEvents } from "@/features/events/services/get-events";
+import type { Event } from "@/features/events/types";
 
 type NavBarProps = {
   searchValue?: string;
@@ -31,6 +38,16 @@ type NavBarProps = {
 
 const EVENT_SUGGESTION_LIMIT = 5;
 
+/** Map each category to a small Lucide icon */
+const CATEGORY_ICONS: Record<Category, React.ReactNode> = {
+  LIVE_MUSIC: <Music className="h-4 w-4 text-primary" />,
+  PERFORMING_ARTS: <Theater className="h-4 w-4 text-violet-400" />,
+  SPORTS: <Trophy className="h-4 w-4 text-amber-400" />,
+  SEMINARS_AND_WORKSHOPS: <Flame className="h-4 w-4 text-orange-400" />,
+  TOURS_AND_EXPERIENCES: <Globe2 className="h-4 w-4 text-emerald-400" />,
+  OTHER: <LayoutGrid className="h-4 w-4 text-slate-400" />,
+};
+
 function buildEventsHref(searchText: string, category?: Category): string {
   const params = new URLSearchParams();
   const normalizedSearch = searchText.trim();
@@ -40,6 +57,12 @@ function buildEventsHref(searchText: string, category?: Category): string {
 
   const query = params.toString();
   return query ? `/events?${query}` : "/events";
+}
+
+/** Return the best-guess icon for an event based on its type field */
+function getEventIcon(event: Event): React.ReactNode {
+  const type = event.type as Category;
+  return CATEGORY_ICONS[type] ?? <Ticket className="h-4 w-4 text-primary" />;
 }
 
 export default function NavBar({
@@ -94,18 +117,16 @@ export default function NavBar({
   const suggestions = suggestionsQuery.data ?? [];
   const showSuggestions =
     isSearchFocused && normalizedSearch.length > 0 && suggestions.length > 0;
+
   const handleSearchChange = (value: string) => {
     if (onSearchChange) {
       onSearchChange(value);
       return;
     }
-
     setLocalSearch(value);
   };
 
-  const handleSearchKeyDown = (
-    event: KeyboardEvent<HTMLInputElement>,
-  ) => {
+  const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key !== "Enter") return;
 
     event.preventDefault();
@@ -120,8 +141,9 @@ export default function NavBar({
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-border bg-surface/55 backdrop-blur-xl">
       <div className="mx-auto flex h-20 max-w-6xl items-center gap-4 px-4 sm:px-6 lg:px-8">
-        <Logo className="shrink-0 text-xl font-extrabold tracking-tight sm:text-2xl"/>
+        <Logo className="shrink-0 text-xl font-extrabold tracking-tight sm:text-2xl" />
 
+        {/* Category dropdown */}
         <details className="group relative shrink-0">
           <summary className="group flex h-11 cursor-pointer list-none items-center gap-2 rounded-full px-3 text-sm font-medium text-foreground/80 transition hover:bg-surface-2/70 hover:text-foreground">
             Thể loại
@@ -133,8 +155,11 @@ export default function NavBar({
                 <Link
                   key={key}
                   href={buildEventsHref(searchText, key)}
-                  className="rounded-xl px-3 py-2 text-sm text-foreground/80 transition hover:bg-surface-2/70 hover:text-foreground"
-              >
+                  className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-foreground/80 transition hover:bg-surface-2/70 hover:text-foreground"
+                >
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-border bg-surface/60">
+                    {CATEGORY_ICONS[key]}
+                  </span>
                   {label}
                 </Link>
               ))}
@@ -142,6 +167,7 @@ export default function NavBar({
           </div>
         </details>
 
+        {/* Search */}
         <div className="flex min-w-0 flex-1 justify-center">
           <div className="group relative w-full max-w-2xl">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/50" />
@@ -170,8 +196,9 @@ export default function NavBar({
                       href={`/events/${event.id}`}
                       className="flex items-start gap-3 px-4 py-3 text-left transition hover:bg-surface-2/70"
                     >
-                      <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-border bg-surface/60 text-xs font-bold text-primary">
-                        {String(event.title).slice(0, 2).toUpperCase()}
+                      {/* Category icon instead of initials */}
+                      <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-border bg-surface/60">
+                        {getEventIcon(event)}
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-semibold text-foreground">
@@ -190,6 +217,7 @@ export default function NavBar({
           </div>
         </div>
 
+        {/* Auth area */}
         <div className="flex shrink-0 items-center gap-2">
           {isLoading ? (
             <div
@@ -211,9 +239,7 @@ export default function NavBar({
                     className="h-full w-full object-cover"
                   />
                 </span>
-                <span className="max-w-40 truncate sm:max-w-56">
-                  {me.email}
-                </span>
+                <span className="max-w-40 truncate sm:max-w-56">{me.email}</span>
                 <ChevronDown className="h-4 w-4 text-foreground/70 transition group-open:rotate-180" />
               </summary>
 

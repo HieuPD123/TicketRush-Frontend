@@ -13,7 +13,7 @@ export default function EventMap({ lat, lng, title }: { lat: number; lng: number
         iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
         shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
       });
-    } catch (e) {
+    } catch {
       // ignore on non-browser
     }
   }, []);

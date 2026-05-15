@@ -62,7 +62,6 @@ function toCardData(event: Event): EventCardData {
     priceFrom:
       minPrice === null ? "Liên hệ" : `Từ ${formatVnd(minPrice)}`,
     imageSrc: event.posterUrl || "/events/event-1.svg",
-    hot: event.spotlight,
   };
 }
 

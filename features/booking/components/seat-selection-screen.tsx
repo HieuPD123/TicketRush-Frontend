@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  AlertCircle,
   ArrowLeft,
   Ban,
   Calendar,
@@ -18,7 +17,7 @@ import {
 import BookingSteps from "@/features/booking/components/booking-steps";
 import { SeatItem, buildSeatLabel } from "@/features/booking/components/seat-item";
 import { formatIsoToDobDisplay } from "@/features/auth/utils/date-of-birth";
-import { useGetEventById } from "@/features/events/services/get-event-by-id";
+import { useGetEventById } from "@/features/events/hooks/use-get-event-by-id";
 import { saveBookingDraft } from "@/features/booking/utils/booking-storage";
 import { holdSeats } from "@/features/booking/services/hold-seats";
 import { formatPriceVND } from "@/features/events/utils/format-price";
@@ -59,8 +58,6 @@ export default function SeatSelectionScreen({ eventId }: SeatSelectionScreenProp
   const searchParams = useSearchParams();
   const { event, loading: eventLoading } = useGetEventById(eventId);
   const { seats, seatMap, loading: seatsLoading, error: seatsError } = useSeatSocket(eventId);
-  const zones = event?.zones ?? [];
-
   const [selectedSeatIds, setSelectedSeatIds] = useState<number[]>([]);
   const [zoom, setZoom] = useState(1);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
@@ -71,6 +68,9 @@ export default function SeatSelectionScreen({ eventId }: SeatSelectionScreenProp
 
   // O(1) lookup trong render
   const selectedSet = useMemo(() => new Set(selectedSeatIds), [selectedSeatIds]);
+
+  // Memoize zones to prevent unnecessary re-renders
+  const zones = useMemo(() => event?.zones ?? [], [event?.zones]);
 
   // Group seats by zone dùng Map
   const zoneBlocks = useMemo(() => {
@@ -117,6 +117,7 @@ export default function SeatSelectionScreen({ eventId }: SeatSelectionScreenProp
   // Auto-unselect ghế invalid khi có realtime patch — O(1) Map lookup
   useEffect(() => {
     if (seatMap.size === 0) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedSeatIds((current) =>
       current.filter((id) => seatMap.get(id)?.status === "AVAILABLE"),
     );

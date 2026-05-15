@@ -57,7 +57,7 @@ export const getEvents = async (request: GetEventsRequest): Promise<GetEventsRes
     const page = request.page ?? 1;
     const size = request.size ?? 10;
 
-    queryParams.set("page", Math.max(0, page - 1).toString());
+    queryParams.set("page", Math.max(1, page).toString());
     queryParams.set("size", Math.max(1, size).toString());
 
     const endpoint = `${url}?${queryParams.toString()}`;

@@ -1,60 +1,155 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useState } from "react";
+import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+import { Flame } from "lucide-react";
 
-import EventCard from "@/features/events/components/event-card";
-import type { TrendingEvent } from "@/features/events/types";
+import EventCard, { type EventCardData } from "@/features/events/components/event-card";
+import type { Event } from "@/features/events/types";
 
-export default function TrendingEventsSection({
-  events,
-}: {
-  events: TrendingEvent[];
-}) {
+function formatDateTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  const weekday = date
+    .toLocaleDateString("vi-VN", { weekday: "short" })
+    .replace("Th ", "T");
+
+  const dayMonth = date.toLocaleDateString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
+  const time = date.toLocaleTimeString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return `${weekday}, ${dayMonth} • ${time}`;
+}
+
+function formatVnd(amount: number): string {
+  return `${new Intl.NumberFormat("vi-VN").format(amount)} đ`;
+}
+
+function getMinZonePrice(zones: Event["zones"]): number | null {
+  if (!zones || zones.length === 0) return null;
+  const prices = zones
+    .map((z) => z.price)
+    .filter((price) => Number.isFinite(price));
+  if (prices.length === 0) return null;
+  return Math.min(...prices);
+}
+
+function toCardData(event: Event): EventCardData {
+  const minPrice = getMinZonePrice(event.zones);
+
+  return {
+    title: event.title,
+    datetime: formatDateTime(event.startTime),
+    location: event.venue,
+    priceFrom: minPrice === null ? "Liên hệ" : `Từ ${formatVnd(minPrice)}`,
+    imageSrc: event.posterUrl || "/events/event-1.svg",
+  };
+}
+
+/* ──────────────────────────────────────────────────────────
+   Slider (3 cards / page, 2 pages max shown via dots)
+────────────────────────────────────────────────────────── */
+
+const CARDS_PER_PAGE = 3;
+
+export { formatDateTime, formatVnd, getMinZonePrice };
+
+export default function TrendingEventsSection({ events }: { events: Event[] }) {
+  const totalPages = Math.max(1, Math.ceil(events.length / CARDS_PER_PAGE));
+  const [page, setPage] = useState(0);
+  const [direction, setDirection] = useState(1);
+
+  const visibleEvents = events.slice(
+    page * CARDS_PER_PAGE,
+    page * CARDS_PER_PAGE + CARDS_PER_PAGE,
+  );
+
+  function goTo(next: number) {
+    setDirection(next > page ? 1 : -1);
+    setPage(next);
+  }
+
+  const variants = {
+    enter: (dir: number) => ({ x: dir * 60, opacity: 0 }),
+    center: { x: 0, opacity: 1 },
+    exit: (dir: number) => ({ x: dir * -60, opacity: 0 }),
+  };
+
   return (
     <section id="trending" className="pb-16">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        {/* Header */}
         <div className="flex items-end justify-between gap-4">
           <div>
-            <h2 className="text-xl font-extrabold tracking-tight sm:text-2xl">
-              Sự kiện nổi bật
+            <h2 className="flex items-center gap-2 text-xl font-extrabold tracking-tight sm:text-2xl">
+              <span className="bg-linear-to-r from-primary to-secondary bg-clip-text text-transparent">
+                Sự kiện nổi bật
+              </span>
+              <Flame className="h-5 w-5 text-orange-400" />
             </h2>
             <p className="mt-1 text-sm text-muted">
               Những sự kiện hot nhất không thể bỏ qua tuần này.
             </p>
           </div>
-          <a
-            href="#"
+          <Link
+            href="/events"
             className="text-sm font-semibold text-primary/90 transition hover:text-primary"
           >
             Xem tất cả →
-          </a>
+          </Link>
         </div>
 
-        <motion.div
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.2 }}
-          variants={{
-            hidden: { opacity: 0 },
-            show: {
-              opacity: 1,
-              transition: { staggerChildren: 0.08 },
-            },
-          }}
-          className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3"
-        >
-          {events.map((event) => (
+        {/* Slider */}
+        <div className="relative mt-6 overflow-hidden">
+          <AnimatePresence mode="wait" custom={direction}>
             <motion.div
-              key={event.title}
-              variants={{
-                hidden: { opacity: 0, y: 10 },
-                show: { opacity: 1, y: 0 },
-              }}
+              key={page}
+              custom={direction}
+              variants={variants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.32, ease: "easeInOut" }}
+              className="grid gap-5 md:grid-cols-2 lg:grid-cols-3"
             >
-              <EventCard data={event} />
+              {visibleEvents.map((event, idx) => (
+                <EventCard
+                  key={event.id}
+                  data={toCardData(event)}
+                  href={`/events/${event.id}`}
+                  priority={page === 0 && idx === 0}
+                />
+              ))}
             </motion.div>
-          ))}
-        </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Pagination dots */}
+        {totalPages > 1 && (
+          <div className="mt-7 flex justify-center gap-2">
+            {Array.from({ length: totalPages }).map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => goTo(i)}
+                aria-label={`Trang ${i + 1}`}
+                className={`h-2 rounded-full transition-all duration-300 ${i === page
+                  ? "w-7 bg-primary"
+                  : "w-2 bg-foreground/25 hover:bg-foreground/45"
+                  }`}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

@@ -4,16 +4,65 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar, Clock, MapPin } from "lucide-react";
+import { Calendar, Clock, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 import dynamic from "next/dynamic";
 
-import EventCard from "@/features/events/components/event-card";
-import { TRENDING_EVENTS } from "@/features/events/mock-data";
-import { useGetEventById } from "@/features/events/services/get-event-by-id";
+import EventCard, { type EventCardData } from "@/features/events/components/event-card";
+import type { Event } from "@/features/events/types";
+import { useGetEventById } from "@/features/events/hooks/use-get-event-by-id";
+import { useRelatedEvents } from "@/features/events/hooks/use-related-events";
 import { formatIsoToDobDisplay } from "@/features/auth/utils/date-of-birth";
 import { formatPriceVND } from "@/features/events/utils/format-price";
 import { useQueue } from "@/features/queue/hooks/use-queue";
 import QueueScreen from "@/features/queue/components/queue-screen";
+
+function formatDateTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  const weekday = date
+    .toLocaleDateString("vi-VN", { weekday: "short" })
+    .replace("Th ", "T");
+
+  const dayMonth = date.toLocaleDateString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
+  const time = date.toLocaleTimeString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return `${weekday}, ${dayMonth} • ${time}`;
+}
+
+function formatVnd(amount: number): string {
+  return `${new Intl.NumberFormat("vi-VN").format(amount)} đ`;
+}
+
+function getMinZonePrice(zones: Event["zones"]): number | null {
+  if (!zones || zones.length === 0) return null;
+  const prices = zones
+    .map((z) => z.price)
+    .filter((price) => Number.isFinite(price));
+  if (prices.length === 0) return null;
+  return Math.min(...prices);
+}
+
+function toCardData(event: Event): EventCardData {
+  const minPrice = getMinZonePrice(event.zones);
+
+  return {
+    title: event.title,
+    datetime: formatDateTime(event.startTime),
+    location: event.venue,
+    priceFrom:
+      minPrice === null ? "Liên hệ" : `Từ ${formatVnd(minPrice)}`,
+    imageSrc: event.posterUrl || "default-poster.svg",
+  };
+}
 
 export default function EventDetailScreen({ eventId }: { eventId: number }) {
   const [isHoveringImage, setIsHoveringImage] = useState(false);
@@ -64,10 +113,21 @@ export default function EventDetailScreen({ eventId }: { eventId: number }) {
 
   const showDetail = !isDesktop || !isHoveringImage || isHoveringDetailZone;
   
-  const relatedEvents = TRENDING_EVENTS;
   const { event, loading } = useGetEventById(eventId);
 
-  const heroImageSrc = event?.posterUrl ?? relatedEvents[Math.abs(eventId) % Math.max(relatedEvents.length, 1)]?.imageSrc ?? "/events/event-1.svg";
+  const {
+    events: relatedEvents,
+    totalPages,
+    currentPage,
+    isFirst,
+    isLast,
+    loading: relatedLoading,
+    error: relatedError,
+    goToNextPage,
+    goToPrevPage,
+  } = useRelatedEvents(eventId, event?.type);
+
+  const heroImageSrc = event?.posterUrl ?? "/events/event-1.svg";
 
   const EventMap = dynamic(() => import("./event-map"), { ssr: false });
   
@@ -233,34 +293,89 @@ export default function EventDetailScreen({ eventId }: { eventId: number }) {
               Có thể bạn cũng thích
             </h2>
           </div>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={goToPrevPage}
+                disabled={isFirst}
+                aria-label="Sự kiện trước"
+                className={
+                  isFirst
+                    ? "inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface/35 text-foreground/30"
+                    : "inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface/55 text-foreground/75 transition hover:bg-surface/70 hover:text-foreground hover:shadow-[0_0_26px_rgba(124,58,237,0.14)]"
+                }
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="text-xs font-semibold text-foreground/75">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={goToNextPage}
+                disabled={isLast}
+                aria-label="Sự kiện tiếp"
+                className={
+                  isLast
+                    ? "inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface/35 text-foreground/30"
+                    : "inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface/55 text-foreground/75 transition hover:bg-surface/70 hover:text-foreground hover:shadow-[0_0_26px_rgba(124,58,237,0.14)]"
+                }
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
         </div>
 
-        <motion.div
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.1 }}
-          variants={{
-            hidden: { opacity: 0 },
-            show: {
-              opacity: 1,
-              transition: { staggerChildren: 0.08 },
-            },
-          }}
-          className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3"
-        >
-          {relatedEvents.map((eventItem, index) => (
-            <motion.div
-              key={`${eventItem.title}-${index}`}
-              variants={{
-                hidden: { opacity: 0, y: 15 },
-                show: { opacity: 1, y: 0 },
-              }}
-              className="overflow-hidden rounded-3xl"
-            >
-              <EventCard data={eventItem} href={`/events/${index + 1}`} />
-            </motion.div>
-          ))}
-        </motion.div>
+        {relatedLoading ? (
+          <div className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="overflow-hidden rounded-3xl border border-border bg-surface/35"
+              >
+                <div className="aspect-video w-full skeleton" />
+                <div className="space-y-3 p-5">
+                  <div className="h-4 w-4/5 skeleton rounded-full" />
+                  <div className="h-3 w-3/5 skeleton rounded-full" />
+                  <div className="h-3 w-2/3 skeleton rounded-full" />
+                  <div className="h-4 w-2/5 skeleton rounded-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : relatedError || relatedEvents.length === 0 ? (
+          <div className="mt-6 rounded-3xl border border-border bg-surface/35 p-10 text-center text-sm text-foreground/80">
+            {relatedError || "Không có sự kiện liên quan"}
+          </div>
+        ) : (
+          <motion.div
+            initial="hidden"
+            animate="show"
+            variants={{
+              hidden: { opacity: 0 },
+              show: {
+                opacity: 1,
+                transition: { staggerChildren: 0.08 },
+              },
+            }}
+            className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3"
+          >
+            {relatedEvents.map((relatedEvent) => (
+              <motion.div
+                key={relatedEvent.id}
+                layout
+                variants={{
+                  hidden: { opacity: 0, y: 15 },
+                  show: { opacity: 1, y: 0 },
+                }}
+              >
+                <EventCard data={toCardData(relatedEvent)} href={`/events/${relatedEvent.id}`} />
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
       </section>
     </div>
 

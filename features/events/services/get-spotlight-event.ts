@@ -41,7 +41,7 @@ export async function getSpotlightEvent(): Promise<GetSpotlightEventResponse> {
             result: data.result,
         };
 
-    } catch (error) {
+    } catch {
         return {
             code: 500,
             message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",

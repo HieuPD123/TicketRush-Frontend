@@ -36,7 +36,7 @@ export const confirmBooking = async (bookingId: number): Promise<ConfirmBookingR
             message: data.message,
             data: data,
         };
-    } catch (err) {
+    } catch {
         return {
             ok: false,
             message: "Không thể kết nối tới server. Vui lòng thử lại sau.",

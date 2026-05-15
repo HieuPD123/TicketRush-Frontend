@@ -26,7 +26,7 @@ export async function checkQueue(eventId: number): Promise<CheckQueueResponse> {
         const result: CheckQueueResponse = await res.json();
         return result;
     }
-    catch (error) {
+    catch {
         return {
             code: 500,
             message: "Đã xảy ra lỗi khi kiểm tra event. Xin vui lòng thử lại sau.",
