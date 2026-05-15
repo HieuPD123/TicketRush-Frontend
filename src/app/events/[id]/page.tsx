@@ -5,10 +5,10 @@ import {
   ArrowLeft,
   Wallet,
   Ticket,
-  TrendingUp,
   MapPin,
   Calendar,
   Lock,
+  Clock,
 } from 'lucide-react';
 
 import { apiService } from '@/services/apiService';
@@ -23,13 +23,18 @@ export default function EventDetailPage({
   const { id } = use(params);
 
   const [event, setEvent] = useState<Event | null>(null);
+  const [seatData, setSeatData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchEvent = async () => {
       try {
         const data = await apiService.getEventById(Number(id));
+        const dataSeats =
+          await apiService.getSeatsByEventId(Number(id));
+
         setEvent(data);
+        setSeatData(dataSeats || []);
       } catch (error) {
         console.error('Failed to fetch event:', error);
       } finally {
@@ -68,7 +73,12 @@ export default function EventDetailPage({
       0
     ) || 0;
 
-  const soldSeats = totalSeats - availableSeats;
+  const lockedSeats = seatData.filter(
+    seat => seat.status === 'LOCKED'
+  ).length;
+
+  const soldSeats =
+    totalSeats - availableSeats - lockedSeats;
 
   const totalRevenue =
     event.zones?.reduce((sum, zone) => {
@@ -84,34 +94,23 @@ export default function EventDetailPage({
       ? ((soldSeats / totalSeats) * 100).toFixed(1)
       : '0';
 
-  const seatStates =
-    event.zones?.flatMap(zone => {
-      const seats = [];
+  const seatMapByZone: Record<
+    number,
+    Record<string, any>
+  > = {};
 
-      const sold =
-        (zone.totalSeats || 0) -
-        (zone.availableSeats || 0);
+  seatData.forEach((seat: any) => {
+    if (!seatMapByZone[seat.zoneId]) {
+      seatMapByZone[seat.zoneId] = {};
+    }
 
-      for (let i = 0; i < sold; i++) {
-        seats.push({
-          state: 'sold',
-          color: zone.colorHex,
-        });
-      }
-
-      for (let i = 0; i < (zone.availableSeats || 0); i++) {
-        seats.push({
-          state: 'available',
-          color: zone.colorHex,
-        });
-      }
-
-      return seats;
-    }) || [];
+    seatMapByZone[seat.zoneId][
+      `${seat.rowNumber}_${seat.colNumber}`
+    ] = seat;
+  });
 
   return (
     <div className="space-y-8 font-sans">
-      {/* HEADER */}
       <div className="flex items-center gap-4">
         <Link
           href="/events"
@@ -145,14 +144,14 @@ export default function EventDetailPage({
         </div>
       </div>
 
-      {/* STATS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
           {
             label: 'Doanh thu thu về',
-            value: `${(totalRevenue / 1000000).toFixed(1)}M`,
+            value: `${(
+              totalRevenue / 1000000
+            ).toFixed(1)}M`,
             sub: 'VND',
-            trend: '+8.2%',
             color: 'primary',
             icon: Wallet,
           },
@@ -173,23 +172,12 @@ export default function EventDetailPage({
             icon: Lock,
           },
           {
-            label: 'Giá vé trung bình',
-            value: `${
-              event.zones?.length
-                ? (
-                    event.zones.reduce(
-                      (sum, z) => sum + z.price,
-                      0
-                    ) /
-                    event.zones.length /
-                    1000000
-                  ).toFixed(1)
-                : 0
-            }M`,
-            sub: 'VND',
-            trend: 'Ổn định',
-            color: 'black',
-            icon: TrendingUp,
+            label: 'Đang giữ chỗ',
+            value: lockedSeats,
+            sub: 'Đang xử lý',
+            trend: 'Thanh toán',
+            color: 'emerald',
+            icon: Clock,
           },
         ].map((card, i) => (
           <div
@@ -207,9 +195,7 @@ export default function EventDetailPage({
                     ? 'bg-ticketbox-green/10 text-ticketbox-green'
                     : card.color === 'secondary'
                       ? 'bg-white text-black'
-                      : card.color === 'emerald'
-                        ? 'bg-emerald-500/10 text-emerald-500'
-                        : 'bg-white/5 text-white/30'
+                      : 'bg-emerald-500/10 text-emerald-500'
                 }`}
               >
                 <card.icon className="w-5 h-5" />
@@ -230,7 +216,9 @@ export default function EventDetailPage({
               <div className="mt-4 w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
                 <div
                   className="bg-white h-full rounded-full transition-all duration-1000"
-                  style={{ width: `${fillRate}%` }}
+                  style={{
+                    width: `${fillRate}%`,
+                  }}
                 />
               </div>
             ) : (
@@ -244,9 +232,7 @@ export default function EventDetailPage({
         ))}
       </div>
 
-      {/* CONTENT */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* SEAT MAP */}
         <div className="lg:col-span-8 bg-pure-black rounded-3xl shadow-2xl border border-white/5 p-12 flex flex-col items-center relative overflow-hidden">
           <div className="absolute top-8 left-8 flex items-center gap-2">
             <div className="w-2 h-2 bg-ticketbox-green rounded-full animate-pulse" />
@@ -256,31 +242,167 @@ export default function EventDetailPage({
             </span>
           </div>
 
-          <div className="w-full max-w-xl h-10 bg-white rounded-t-[40px] flex items-center justify-center text-black/20 text-[10px] font-black tracking-[0.8em] mb-12 shadow-2xl uppercase">
+          <div className="w-full max-w-xl h-12 bg-white rounded-t-[40px] flex items-center justify-center text-black/20 text-[10px] font-black tracking-[0.8em] mb-12 shadow-2xl uppercase">
             SÂN KHẤU
           </div>
 
-          <div className="grid grid-cols-12 gap-2 w-full max-w-3xl justify-center">
-            {seatStates.map((seat, i) => (
-              <div
-                key={i}
-                className={`w-full pt-[100%] rounded-md transition-all ${
-                  seat.state === 'sold'
-                    ? 'opacity-100'
-                    : 'opacity-40 border border-white/10'
-                }`}
-                style={{
-                  backgroundColor:
-                    seat.state === 'sold'
-                      ? seat.color
-                      : 'transparent',
-                }}
-              />
-            ))}
+          <div className="overflow-auto max-h-[650px] w-full flex justify-center p-4">
+            <div className="w-full max-w-5xl space-y-10">
+              {event.zones?.map(zone => {
+                const cols = zone.totalCols || 1;
+                const rows = zone.totalRows || 1;
+
+                const map =
+                  seatMapByZone[zone.id] || {};
+
+                return (
+                  <div
+                    key={zone.id}
+                    className="bg-white/[0.02] border border-white/5 rounded-3xl p-6 shadow-inner"
+                  >
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-4">
+                        <div
+                          className="w-5 h-5 rounded shadow-sm"
+                          style={{
+                            backgroundColor:
+                              zone.colorHex,
+                          }}
+                        />
+
+                        <div>
+                          <h3 className="text-sm font-black text-white uppercase tracking-widest">
+                            {zone.name}
+                          </h3>
+
+                          <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mt-1">
+                            {rows} hàng • {cols} ghế
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-sm font-black text-ticketbox-green">
+                        {zone.price.toLocaleString(
+                          'vi-VN'
+                        )}
+                        ₫
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2.5 items-center">
+                      {Array.from({
+                        length: rows,
+                      }).map((_, r) => {
+                        return (
+                          <div
+                            key={r}
+                            className="flex items-center gap-3"
+                          >
+                            <div className="w-6 text-center text-[10px] font-black text-white/20">
+                              {String.fromCharCode(
+                                65 + r
+                              )}
+                            </div>
+
+                            <div className="flex gap-2.5">
+                              {Array.from({
+                                length: cols,
+                              }).map((_, c) => {
+                                const row = r + 1;
+                                const col = c + 1;
+
+                                const seat =
+                                  map[
+                                    `${row}_${col}`
+                                  ];
+
+                                const status =
+                                  seat?.status ||
+                                  'AVAILABLE';
+
+                                return (
+                                  <div
+                                    key={`${row}_${col}`}
+                                    title={`${
+                                      seat?.label ||
+                                      `${String.fromCharCode(
+                                        65 + r
+                                      )}${col}`
+                                    } - ${status}`}
+                                    className={`
+                                      w-8 h-8 rounded-lg shadow-sm transition-all
+                                      hover:scale-125 cursor-pointer
+                                      flex items-center justify-center
+                                      text-[8px] font-black
+                                      ${
+                                        status ===
+                                        'AVAILABLE'
+                                          ? 'bg-white/5 border border-white/5 text-white/20'
+                                          : ''
+                                      }
+                                      ${
+                                        status ===
+                                        'LOCKED'
+                                          ? 'bg-yellow-500/20 border border-yellow-400/40 text-yellow-200'
+                                          : ''
+                                      }
+                                      ${
+                                        status ===
+                                        'SOLD'
+                                          ? 'text-white'
+                                          : ''
+                                      }
+                                    `}
+                                    style={{
+                                      backgroundColor:
+                                        status ===
+                                        'SOLD'
+                                          ? zone.colorHex
+                                          : undefined,
+                                    }}
+                                  >
+                                    {col}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-10 flex flex-wrap justify-center gap-8 p-6 bg-pure-black rounded-3xl shadow-sm border border-white/5">
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 rounded bg-white/5 border border-white/10 shadow-sm" />
+
+              <span className="text-[10px] font-black text-white/20 tracking-[0.2em] uppercase">
+                Còn trống
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 rounded bg-yellow-500/20 border border-yellow-400/40 shadow-sm" />
+
+              <span className="text-[10px] font-black text-white/20 tracking-[0.2em] uppercase">
+                Đang giữ
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 rounded bg-ticketbox-green shadow-sm" />
+
+              <span className="text-[10px] font-black text-white/20 tracking-[0.2em] uppercase">
+                Đã bán
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* INFO */}
         <div className="lg:col-span-4 space-y-8">
           <div className="bg-pure-black rounded-3xl shadow-2xl border border-white/5 p-8 space-y-8">
             <h3 className="font-black text-xl text-white uppercase tracking-tighter">
@@ -295,7 +417,7 @@ export default function EventDetailPage({
 
                 <div>
                   <p className="text-sm font-black text-white">
-                    {event.revenue}
+                    {event.venue}
                   </p>
 
                   <p className="text-[10px] font-black text-white/30 mt-1 uppercase tracking-wider">
@@ -312,54 +434,28 @@ export default function EventDetailPage({
                 <div>
                   <p className="text-sm font-black text-white">
                     {event.startTime
-                      ? new Date(event.startTime).toLocaleDateString('vi-VN')
+                      ? new Date(
+                          event.startTime
+                        ).toLocaleDateString(
+                          'vi-VN'
+                        )
                       : '(Chưa có thời gian)'}
                   </p>
 
                   <p className="text-[10px] font-black text-white/30 mt-1 uppercase tracking-wider">
                     {event.startTime
-                      ? new Date(event.startTime).toLocaleTimeString('vi-VN')
+                      ? new Date(
+                          event.startTime
+                        ).toLocaleTimeString(
+                          'vi-VN'
+                        )
                       : ''}
                   </p>
                 </div>
               </div>
             </div>
-
-            {/* ZONES */}
-            <div className="pt-8 border-t border-white/5">
-              <h4 className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-6">
-                Chi tiết hạng vé
-              </h4>
-
-              <div className="space-y-4">
-                {event.zones?.map(zone => (
-                  <div
-                    key={zone.id}
-                    className="flex justify-between items-center bg-white/5 p-4 rounded-2xl border border-white/5"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{
-                          backgroundColor: zone.colorHex,
-                        }}
-                      />
-
-                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">
-                        {zone.name}
-                      </span>
-                    </div>
-
-                    <span className="font-black text-ticketbox-green text-sm">
-                      {zone.price.toLocaleString('vi-VN')}₫
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
 
-          {/* FILL RATE */}
           <div className="bg-ticketbox-green rounded-3xl p-8 text-black relative overflow-hidden shadow-2xl">
             <h3 className="text-xl font-black mb-2 uppercase tracking-widest">
               Tỉ lệ lấp đầy
@@ -374,13 +470,17 @@ export default function EventDetailPage({
                 {fillRate}
               </span>
 
-              <span className="text-2xl font-black">%</span>
+              <span className="text-2xl font-black">
+                %
+              </span>
             </div>
 
             <div className="w-full bg-black/10 rounded-full h-3 mb-8 overflow-hidden">
               <div
                 className="bg-white h-full rounded-full transition-all duration-1000"
-                style={{ width: `${fillRate}%` }}
+                style={{
+                  width: `${fillRate}%`,
+                }}
               />
             </div>
 

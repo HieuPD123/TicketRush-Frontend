@@ -25,6 +25,18 @@ export interface Zone {
   availableSeats: number;
 }
 
+export interface Seat {
+  id: number,
+  zoneId: number,
+  zoneName: string,
+  colorHex: string,
+  price: number,
+  rowNumber: number,
+  colNumber: number,
+  label: string,
+  status: 'AVAILABLE' | 'LOCKED' | 'SOLD'
+}
+
 export interface EventResponse {
   code: number;
   message: string;

@@ -1,4 +1,5 @@
-import type { Event, LoginResponse, Customer } from '@/types';
+import type { Event, LoginResponse, Customer, Zone, Seat } from '@/types';
+import { get } from 'http';
 
 const API_BASE_URL = 'http://localhost:8080/api';
 
@@ -144,6 +145,10 @@ export const apiService = {
       },
       [1000, 1073741824]
     );
+  },
+
+  async getSeatsByEventId(eventId: number): Promise<Seat[]> {
+    return await apiCall<Seat[]>(`/events/${eventId}/seats`);
   },
 
   async getDashboardStats() {
