@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
       // add other allowed remote patterns here
     ],
   },
+  allowedDevOrigins: ["26.96.49.135"],
 };
 
 export default nextConfig;
