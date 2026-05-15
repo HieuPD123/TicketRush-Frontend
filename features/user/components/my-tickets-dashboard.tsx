@@ -28,8 +28,9 @@ function formatVnd(amount: number): string {
 }
 
 function formatDateTime(value: string): string {
+  if (!value || value.trim() === "") return "Không xác định";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+  if (Number.isNaN(date.getTime())) return "Không xác định";
   return date.toLocaleString("vi-VN", {
     hour: "2-digit",
     minute: "2-digit",
@@ -127,7 +128,7 @@ function TicketCard({
             </div>
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-primary/85" />
-              <span>Ngày mua: {formatDateTime(issuedAt)}</span>
+              <span>Ngày mua: {issuedAt ? formatDateTime(issuedAt) : "Không xác định"}</span>
             </div>
           </div>
         </div>

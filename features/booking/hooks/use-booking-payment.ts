@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { readBookingDraft, clearBookingDraft } from "@/features/booking/utils/booking-storage";
 import { confirmBooking as confirmBookingApi } from "@/features/booking/services/confirm-booking";
@@ -22,6 +23,8 @@ export function useBookingPayment(onSuccess?: () => void) {
   });
 
 
+  const router = useRouter();
+
   const toggleCancelDialog = useCallback(() => {
     setState((prev) => ({
       ...prev,
@@ -31,7 +34,10 @@ export function useBookingPayment(onSuccess?: () => void) {
   }, []);
 
   const confirmBooking = useCallback(
-    async (bookingId: number) => {
+    async (
+      bookingId: number,
+      successData?: { eventId: number; eventTitle: string; eventDate: string; totalAmount: number },
+    ) => {
       setState((prev) => ({
         ...prev,
         isConfirming: true,
@@ -49,6 +55,17 @@ export function useBookingPayment(onSuccess?: () => void) {
         clearBookingDraft();
         onSuccess?.();
 
+        if (successData) {
+          const searchParams = new URLSearchParams({
+            event: successData.eventTitle,
+            date: successData.eventDate,
+            total: successData.totalAmount.toString(),
+          });
+          router.push(
+            `/events/${successData.eventId}/booking/success?${searchParams.toString()}`,
+          );
+        }
+
         return { success: true, bookingId: result.data?.result.id };
       }
 
@@ -60,7 +77,7 @@ export function useBookingPayment(onSuccess?: () => void) {
 
       return { success: false };
     },
-    [onSuccess],
+    [onSuccess, router],
   );
 
   const cancelAndBack = useCallback(async () => {

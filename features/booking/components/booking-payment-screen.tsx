@@ -27,9 +27,8 @@ export default function BookingPaymentScreen({ eventId }: BookingPaymentScreenPr
   const [method, setMethod] = useState<(typeof PAYMENT_METHODS)[number]["id"]>("card");
 
   const { event, loading: eventLoading } = useGetEventById(eventId);
-  const { state, toggleCancelDialog, confirmBooking, cancelAndBack } = useBookingPayment(
-    () => router.push("/"),
-  );
+  
+  const { state, toggleCancelDialog, confirmBooking, cancelAndBack } = useBookingPayment();
 
   useEffect(() => {
     const stored = readBookingDraft();
@@ -63,11 +62,14 @@ export default function BookingPaymentScreen({ eventId }: BookingPaymentScreenPr
   };
 
   const handlePay = async () => {
-    if (!draft?.bookingId || selectedSeats.length === 0) return;
-    const result = await confirmBooking(draft.bookingId);
-    if (result.success) {
-      router.push("/profile/tickets");
-    }
+    if (!draft?.bookingId || selectedSeats.length === 0 || !event) return;
+
+    await confirmBooking(draft.bookingId, {
+      eventId,
+      eventTitle: event.title || "Sự kiện",
+      eventDate: eventDateLabel,
+      totalAmount: total,
+    });
   };
 
   return (

@@ -229,7 +229,7 @@ export default function NavBar({
                 </Link>
 
                 <a
-                  href="#"
+                  href="/profile/tickets"
                   className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-foreground/80 transition hover:bg-surface-2/70 hover:text-foreground"
                 >
                   <span className="grid h-9 w-9 place-items-center rounded-full border border-border bg-surface/60">

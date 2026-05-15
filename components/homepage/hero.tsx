@@ -17,9 +17,9 @@ export default function Hero() {
           transition={{ duration: 0.6, ease: "easeOut" }}
           className="max-w-4xl text-balance text-4xl font-extrabold tracking-tight sm:text-6xl"
         >
-          <span className="text-foreground">Đừng Bỏ Lỡ Điều</span>{" "}
+          <span className="text-foreground">Đừng Bỏ Lỡ Các</span>{" "}
           <span className="bg-linear-to-r from-primary to-secondary bg-clip-text text-transparent box-decoration-clone">
-            Mọi Người Đang Nói Đến
+            Sự Kiện Hấp Dẫn!
           </span>
         </motion.h1>
 
