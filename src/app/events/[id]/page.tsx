@@ -56,10 +56,6 @@ export default function EventDetailPage({
     );
   }
 
-  // =========================
-  // CALCULATE STATS
-  // =========================
-
   const totalSeats =
     event.zones?.reduce(
       (sum, zone) => sum + (zone.totalSeats || 0),
@@ -87,10 +83,6 @@ export default function EventDetailPage({
     totalSeats > 0
       ? ((soldSeats / totalSeats) * 100).toFixed(1)
       : '0';
-
-  // =========================
-  // SEAT MAP
-  // =========================
 
   const seatStates =
     event.zones?.flatMap(zone => {

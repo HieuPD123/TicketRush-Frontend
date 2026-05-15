@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, Users, Ticket, Wallet } from 'lucide-react';
+import { Users, Ticket, Wallet } from 'lucide-react';
 import { apiService } from '@/services/apiService';
 import { TicketFeedItem } from '@/types';
 
@@ -36,7 +36,7 @@ export default function Dashboard() {
         {[
           { label: 'Tổng doanh thu', value: `${(stats.totalRevenue / 1000000).toFixed(0)}M`, sub: 'VND', trend: '+12.5%', color: 'primary', icon: Wallet },
           { label: 'Vé đã bán', value: `${stats.ticketsSold}`, sub: `/ ${stats.totalCapacity}`, trend: `${((stats.ticketsSold / stats.totalCapacity) * 100).toFixed(1)}%`, progress: true, color: 'secondary', icon: Ticket },
-          { label: 'Sự kiện đang chạy', value: `${stats.activeEvents}`, sub: '3 địa điểm', color: 'neutral', icon: Users },
+          { label: 'Sự kiện đang chạy', value: `${stats.activeEvents}`, color: 'neutral', icon: Users },
           // { label: 'Khách đang xem', value: `${stats.liveVisitors}`, sub: '+45 ngay lúc này', trend: 'Live', color: 'error', icon: TrendingUp },
         ].map((card, i) => (
           <div key={i} className="bg-pure-black rounded-2xl p-8 shadow-2xl border border-white/5 group hover:border-white/10 transition-all relative overflow-hidden">

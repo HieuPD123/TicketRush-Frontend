@@ -9,6 +9,7 @@ import Link from 'next/link';
 export default function EventListPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     apiService.getEvents().then((data) => {
@@ -16,6 +17,12 @@ export default function EventListPage() {
       setLoading(false);
     });
   }, []);
+
+  const filteredEvents = events.filter(event =>
+    event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    event.venue.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (event.organizer?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
+  );
 
   if (loading) return <div className="p-10 text-center text-white/50 animate-pulse font-bold">Đang tải danh sách sự kiện...</div>;
 
@@ -63,7 +70,9 @@ export default function EventListPage() {
           <div className="relative">
             <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-white/20" />
             <input 
-              type="text" 
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Tìm kiếm sự kiện..." 
               className="bg-white/5 border border-white/5 rounded-xl pl-11 pr-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-ticketbox-green/20 w-80 text-white placeholder:text-white/20"
             />
@@ -82,7 +91,7 @@ export default function EventListPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {events.map((event) => (
+              {filteredEvents.map((event) => (
                 <tr key={event.id} className="hover:bg-white/[0.03] group transition-colors">
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-5">
@@ -103,12 +112,12 @@ export default function EventListPage() {
                     <p className="text-sm font-bold text-white/70">{event.venue}</p>
                   </td>
                   <td className="px-8 py-6">
-                    <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${
-                      event.status === 'Selling' ? 'bg-ticketbox-green/10 text-ticketbox-green border-ticketbox-green/20' :
-                      event.status === 'Draft' ? 'bg-white/5 text-white/40 border-white/10' :
+                    <span className={`px-3 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border whitespace-nowrap ${
+                      event.status === 'ON_SALE' ? 'bg-ticketbox-green/10 text-ticketbox-green border-ticketbox-green/20' :
+                      event.status === 'DRAFT' ? 'bg-white/5 text-white/40 border-white/10' :
                       'bg-error/10 text-error border-error/20'
                     }`}>
-                      {event.status === 'Selling' ? 'Đang bán' : event.status === 'Draft' ? 'Nháp' : 'Đã đóng'}
+                      {event.status === 'ON_SALE' ? 'Đang bán' : event.status === 'DRAFT' ? 'Nháp' : 'Đã đóng'}
                     </span>
                   </td>
                   <td className="px-8 py-6">

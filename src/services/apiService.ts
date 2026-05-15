@@ -72,7 +72,7 @@ const apiCall = async <T = any>(
 
 export const apiService = {
   async getEvents(): Promise<Event[]> {
-    const response = await apiCall<any>('/events');
+    const response = await apiCall<any>('/admin/events');
 
     if (Array.isArray(response)) {
       return response;
@@ -160,6 +160,7 @@ export const apiService = {
     let totalRevenue = 0;
     let ticketsSold = 0;
     let totalCapacity = 0;
+    const recentTickets: any[] = [];
 
     for (const event of events) {
       if (event.zones) {
@@ -173,6 +174,15 @@ export const apiService = {
           ticketsSold += sold;
 
           totalRevenue += sold * (zone.price || 0);
+
+          // Add ticket activity entries for each zone
+          recentTickets.push({
+            id: `${event.id}-${zone.id}`,
+            eventName: event.title,
+            orderNumber: Math.floor(Math.random() * 100000).toString(),
+            tier: zone.name,
+            timestamp: 'Just now',
+          });
         }
       }
     }
@@ -183,7 +193,9 @@ export const apiService = {
       totalCapacity,
       activeEvents: events.length,
       revenueTrends: [],
-      recentTickets: [],
+      recentTickets,
     };
   }
+
+
 };
