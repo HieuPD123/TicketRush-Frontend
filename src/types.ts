@@ -90,3 +90,22 @@ export interface Customer {
   status: 'Active' | 'Inactive';
   avatarUrl?: string;
 }
+
+export interface AgeGroupStat {
+  ageGroup: string;
+  count: number;
+  percentage: number;
+}
+
+export interface GenderStat {
+  gender: string;
+  count: number;
+  percentage: number;
+}
+
+export interface EventStats {
+  eventId: number;
+  totalBuyers: number;
+  ageGroupStats: AgeGroupStat[];
+  genderStats: GenderStat[];
+}

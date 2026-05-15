@@ -11,9 +11,17 @@ import {
   Clock,
 } from 'lucide-react';
 
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+} from 'recharts';
+
 import { apiService } from '@/services/apiService';
-import type { Event } from '@/types';
+import type { Event, EventStats } from '@/types';
 import Link from 'next/link';
+
 
 export default function EventDetailPage({
   params,
@@ -22,21 +30,45 @@ export default function EventDetailPage({
 }) {
   const { id } = use(params);
 
-  const [event, setEvent] = useState<Event | null>(null);
-  const [seatData, setSeatData] = useState<any[]>([]);
+  const [event, setEvent] = useState<Event | null>(
+    null
+  );
+
+  const [seatData, setSeatData] = useState<any[]>(
+    []
+  );
+
+  const [eventStats, setEventStats] = useState<EventStats | null>(
+    null
+  );
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchEvent = async () => {
       try {
-        const data = await apiService.getEventById(Number(id));
-        const dataSeats =
-          await apiService.getSeatsByEventId(Number(id));
+        const data =
+          await apiService.getEventById(
+            Number(id)
+          );
 
+        const dataSeats =
+          await apiService.getSeatsByEventId(
+            Number(id)
+          );
+
+        const stats = await apiService.getEventStatsById(
+          Number(id)
+        );
+
+        setEventStats(stats);
         setEvent(data);
         setSeatData(dataSeats || []);
       } catch (error) {
-        console.error('Failed to fetch event:', error);
+        console.error(
+          'Failed to fetch event:',
+          error
+        );
       } finally {
         setLoading(false);
       }
@@ -63,13 +95,15 @@ export default function EventDetailPage({
 
   const totalSeats =
     event.zones?.reduce(
-      (sum, zone) => sum + (zone.totalSeats || 0),
+      (sum, zone) =>
+        sum + (zone.totalSeats || 0),
       0
     ) || 0;
 
   const availableSeats =
     event.zones?.reduce(
-      (sum, zone) => sum + (zone.availableSeats || 0),
+      (sum, zone) =>
+        sum + (zone.availableSeats || 0),
       0
     ) || 0;
 
@@ -78,7 +112,9 @@ export default function EventDetailPage({
   ).length;
 
   const soldSeats =
-    totalSeats - availableSeats - lockedSeats;
+    totalSeats -
+    availableSeats -
+    lockedSeats;
 
   const totalRevenue =
     event.zones?.reduce((sum, zone) => {
@@ -86,12 +122,17 @@ export default function EventDetailPage({
         (zone.totalSeats || 0) -
         (zone.availableSeats || 0);
 
-      return sum + sold * (zone.price || 0);
+      return (
+        sum + sold * (zone.price || 0)
+      );
     }, 0) || 0;
 
   const fillRate =
     totalSeats > 0
-      ? ((soldSeats / totalSeats) * 100).toFixed(1)
+      ? (
+          (soldSeats / totalSeats) *
+          100
+        ).toFixed(1)
       : '0';
 
   const seatMapByZone: Record<
@@ -139,7 +180,8 @@ export default function EventDetailPage({
           </div>
 
           <p className="text-white/40 font-bold uppercase tracking-widest text-[10px] mt-1">
-            Chi tiết hiệu suất và quản lý chỗ ngồi
+            Chi tiết hiệu suất và quản lý
+            chỗ ngồi
           </p>
         </div>
       </div>
@@ -155,6 +197,7 @@ export default function EventDetailPage({
             color: 'primary',
             icon: Wallet,
           },
+
           {
             label: 'Vé đã bán',
             value: soldSeats,
@@ -164,6 +207,7 @@ export default function EventDetailPage({
             color: 'secondary',
             icon: Ticket,
           },
+
           {
             label: 'Ghế còn trống',
             value: availableSeats,
@@ -171,6 +215,7 @@ export default function EventDetailPage({
             color: 'emerald',
             icon: Lock,
           },
+
           {
             label: 'Đang giữ chỗ',
             value: lockedSeats,
@@ -193,7 +238,8 @@ export default function EventDetailPage({
                 className={`p-2 rounded-lg ${
                   card.color === 'primary'
                     ? 'bg-ticketbox-green/10 text-ticketbox-green'
-                    : card.color === 'secondary'
+                    : card.color ===
+                        'secondary'
                       ? 'bg-white text-black'
                       : 'bg-emerald-500/10 text-emerald-500'
                 }`}
@@ -232,6 +278,147 @@ export default function EventDetailPage({
         ))}
       </div>
 
+      {/* ANALYTICS */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="bg-pure-black rounded-3xl border border-white/5 shadow-2xl overflow-hidden">
+          <div className="px-8 py-6 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-black text-white uppercase tracking-tight">
+                Phân tích giới tính
+              </h3>
+
+              <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mt-1">
+                Tỉ lệ người tham gia
+              </p>
+            </div>
+
+            <div className="w-2 h-2 rounded-full bg-ticketbox-green animate-pulse" />
+          </div>
+
+          <div className="p-8 flex items-center gap-10">
+            <div className="w-44 h-44 shrink-0">
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+              >
+                <PieChart>
+                  <Pie
+                    data={eventStats?.genderStats || []}
+                    innerRadius={60}
+                    outerRadius={82}
+                    paddingAngle={6}
+                    dataKey="percentage"
+                    stroke="none"
+                  >
+                    <Cell fill="#24C373" />
+                    <Cell fill="#ffffff15" />
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="flex-1 space-y-5">
+              {eventStats?.genderStats.map(
+                (genderStat, index) => (
+                  <div
+                    key={index}
+                    className="bg-white/[0.03] border border-white/5 rounded-2xl px-5 py-4 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div
+                        className={`w-4 h-4 rounded-full ${
+                          index === 0
+                            ? 'bg-ticketbox-green'
+                            : 'bg-white/20'
+                        }`}
+                      />
+
+                      <div>
+                        <p className="text-sm font-black text-white uppercase tracking-wider">
+                          {
+                            genderStat.gender
+                          }
+                        </p>
+
+                        <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">
+                          Audience
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <p className="text-2xl font-black text-white">
+                        {
+                          genderStat.percentage
+                        }
+                        %
+                      </p>
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-pure-black rounded-3xl border border-white/5 shadow-2xl overflow-hidden">
+          <div className="px-8 py-6 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-black text-white uppercase tracking-tight">
+                Phân tích độ tuổi
+              </h3>
+
+              <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mt-1">
+                Phân bố người tham gia
+              </p>
+            </div>
+
+            <div className="w-2 h-2 rounded-full bg-ticketbox-green animate-pulse" />
+          </div>
+
+          <div className="p-8 space-y-6">
+            {eventStats?.ageGroupStats.map(
+              (ageStat, i) => (
+                <div
+                  key={i}
+                  className="space-y-2"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-black text-white uppercase tracking-wider">
+                        {
+                          ageStat.ageGroup
+                        }
+                      </p>
+
+                      <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">
+                        Nhóm tuổi
+                      </p>
+                    </div>
+
+                    <span className="text-lg font-black text-ticketbox-green">
+                      {
+                        ageStat.percentage
+                      }
+                      %
+                    </span>
+                  </div>
+
+                  <div className="w-full h-2 rounded-full bg-white/5 overflow-hidden">
+                    <div
+                      className="h-full bg-ticketbox-green rounded-full transition-all duration-1000 shadow-[0_0_20px_rgba(36,195,115,0.35)]"
+                      style={{
+                        width: `${ageStat.percentage}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-8 bg-pure-black rounded-3xl shadow-2xl border border-white/5 p-12 flex flex-col items-center relative overflow-hidden">
           <div className="absolute top-8 left-8 flex items-center gap-2">
@@ -249,11 +436,16 @@ export default function EventDetailPage({
           <div className="overflow-auto max-h-[650px] w-full flex justify-center p-4">
             <div className="w-full max-w-5xl space-y-10">
               {event.zones?.map(zone => {
-                const cols = zone.totalCols || 1;
-                const rows = zone.totalRows || 1;
+                const cols =
+                  zone.totalCols || 1;
+
+                const rows =
+                  zone.totalRows || 1;
 
                 const map =
-                  seatMapByZone[zone.id] || {};
+                  seatMapByZone[
+                    zone.id
+                  ] || {};
 
                 return (
                   <div
@@ -276,7 +468,8 @@ export default function EventDetailPage({
                           </h3>
 
                           <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mt-1">
-                            {rows} hàng • {cols} ghế
+                            {rows} hàng •{' '}
+                            {cols} ghế
                           </p>
                         </div>
                       </div>
@@ -308,8 +501,11 @@ export default function EventDetailPage({
                               {Array.from({
                                 length: cols,
                               }).map((_, c) => {
-                                const row = r + 1;
-                                const col = c + 1;
+                                const row =
+                                  r + 1;
+
+                                const col =
+                                  c + 1;
 
                                 const seat =
                                   map[
@@ -323,12 +519,6 @@ export default function EventDetailPage({
                                 return (
                                   <div
                                     key={`${row}_${col}`}
-                                    title={`${
-                                      seat?.label ||
-                                      `${String.fromCharCode(
-                                        65 + r
-                                      )}${col}`
-                                    } - ${status}`}
                                     className={`
                                       w-8 h-8 rounded-lg shadow-sm transition-all
                                       hover:scale-125 cursor-pointer
