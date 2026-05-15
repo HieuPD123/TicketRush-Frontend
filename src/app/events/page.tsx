@@ -87,7 +87,7 @@ export default function EventListPage() {
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-5">
                       <div className="w-16 h-16 rounded-2xl bg-white/10 overflow-hidden border border-white/10 shadow-sm relative group-hover:border-ticketbox-green/30">
-                        <img src={event.bannerUrl} alt={event.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-80 group-hover:opacity-100" />
+                        <img src={event.posterUrl} alt={event.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-80 group-hover:opacity-100" />
                       </div>
                       <div>
                         <p className="font-black text-white text-lg leading-tight mb-1 group-hover:text-ticketbox-green transition-colors">{event.title}</p>
@@ -96,12 +96,11 @@ export default function EventListPage() {
                     </div>
                   </td>
                   <td className="px-8 py-6">
-                    <p className="text-sm font-black text-white">{new Date(event.startDate).toLocaleDateString('vi-VN')}</p>
+                    <p className="text-sm font-black text-white">{new Date(event.startTime).toLocaleDateString('vi-VN')}</p>
                     <p className="text-[10px] text-white/30 font-black uppercase">{event.startTime}</p>
                   </td>
                   <td className="px-8 py-6">
-                    <p className="text-sm font-bold text-white/70">{event.venueName}</p>
-                    <p className="text-[10px] text-white/30 font-medium uppercase">{event.city}</p>
+                    <p className="text-sm font-bold text-white/70">{event.venue}</p>
                   </td>
                   <td className="px-8 py-6">
                     <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${

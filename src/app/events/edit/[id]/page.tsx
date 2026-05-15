@@ -18,17 +18,17 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
 
   useEffect(() => {
     apiService.getEvents().then(events => {
-      const found = events.find(e => e.id === id);
+      const found = events.find(e => e.id === Number(id));
       if (found) {
         setFormData(found);
-        setImages(found.bannerUrl ? [found.bannerUrl] : [
+        setImages(found.posterUrl ? [found.posterUrl] : [
           'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=1000&auto=format&fit=crop',
           'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=1000&auto=format&fit=crop'
         ]);
         setSections([
           { 
             id: '1', 
-            name: found.venueName || 'Khu vực sàn A', 
+            name: found.venue || 'Khu vực sàn A', 
             rows: 10, 
             seatsPerRow: 12, 
             tiers: [
@@ -104,7 +104,7 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
   const prevStep = () => setStep(s => s - 1);
 
   const handlePublish = async () => {
-    await apiService.saveEvent({ ...formData, status: 'Selling' });
+    await apiService.saveEvent({ ...formData, status: 'Selling' } as Event);
     router.push('/events');
   };
 
@@ -194,8 +194,8 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                        <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Danh mục</label>
                        <select 
                          className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3.5 font-bold text-white outline-none focus:ring-2 focus:ring-ticketbox-green/20"
-                         value={formData.category}
-                         onChange={e => setFormData({...formData, category: e.target.value as any})}
+                         value={formData.type}
+                         onChange={e => setFormData({...formData, type: e.target.value as any})}
                        >
                          <option value="Concert">Hòa nhạc (Concert)</option>
                          <option value="Tech">Công nghệ</option>

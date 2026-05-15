@@ -1,29 +1,69 @@
-import type { Event } from '@/types';
+import type { Event, LoginResponse, Customer } from '@/types';
 
 const API_BASE_URL = 'http://localhost:8080/api';
 
-const apiCall = async <T = any>(
-  endpoint: string,
-  options?: RequestInit,
-  successCodes: number[] = [1000]
-): Promise<T> => {
-  const token = await getAdminToken();
-
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+export const login = async (
+  email: string,
+  password: string
+): Promise<LoginResponse['result']> => {
+  const res = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: 'POST',
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
+    body: JSON.stringify({
+      email,
+      password,
+    }),
+  });
+
+  const data: LoginResponse = await res.json();
+
+  if (data.code !== 1000) {
+    throw new Error(data.message || 'Login failed');
+  }
+
+  if (data.result.role) {
+    localStorage.setItem('role', data.result.role);
+  }
+
+  return data.result;
+};
+
+export const logout = (): void => {
+  localStorage.removeItem('role');
+};
+
+const apiCall = async <T = any>(
+  endpoint: string,
+  options: RequestInit = {},
+  successCodes: number[] = [1000]
+): Promise<T> => {
+  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
   });
 
   if (!res.ok) {
+    const errorText = await res.text();
+
+    console.error('API ERROR:', {
+      url: `${API_BASE_URL}${endpoint}`,
+      status: res.status,
+      body: errorText,
+    });
+
     throw new Error(`Network response was not ok (${res.status})`);
   }
 
   const data = await res.json();
 
-  if (data.code !== 1000) {
+  if (!successCodes.includes(data.code)) {
     throw new Error(data.message || 'API Error');
   }
 
@@ -49,6 +89,10 @@ export const apiService = {
     return await apiCall<Event>(`/events/${id}`);
   },
 
+  async getCustomers(): Promise<Customer[]> {
+    return await apiCall<Customer[]>('/customers');
+  },
+
   async createEvent(eventData: {
     title: string;
     description: string;
@@ -60,11 +104,15 @@ export const apiService = {
     type: string;
     posterUrl: string;
     endTimeAfterStartTime: boolean;
-  }) {
-    return await apiCall<Event>('/admin/events', {
-      method: 'POST',
-      body: JSON.stringify(eventData),
-    }, [1000, 1073741824]);
+  }): Promise<Event> {
+    return await apiCall<Event>(
+      '/admin/events',
+      {
+        method: 'POST',
+        body: JSON.stringify(eventData),
+      },
+      [1000, 1073741824]
+    );
   },
 
   async createZone(
@@ -82,129 +130,60 @@ export const apiService = {
       {
         method: 'POST',
         body: JSON.stringify(zoneData),
-      }
+      },
+      [1000, 1073741824]
+    );
+  },
+
+  async saveEvent(eventData: Event): Promise<Event> {
+    return await apiCall<Event>(
+      `/admin/events/${eventData.id}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(eventData),
+      },
+      [1000, 1073741824]
     );
   },
 
   async getDashboardStats() {
     const response = await apiCall<any>('/events');
 
-    const events: Event[] = Array.isArray(response)
-      ? response
-      : Array.isArray(response?.content)
-        ? response.content
-        : [];
+    let events: Event[] = [];
 
-    const totalRevenue = events.reduce((sum, event) => {
-      if (!event.zones || !Array.isArray(event.zones)) {
-        return sum;
-      }
+    if (Array.isArray(response)) {
+      events = response;
+    } else if (Array.isArray(response?.content)) {
+      events = response.content;
+    }
 
-      const eventRevenue = event.zones.reduce((zoneSum, zone) => {
-        const soldSeats =
-          (zone.totalSeats || 0) -
-          (zone.availableSeats || 0);
+    let totalRevenue = 0;
+    let ticketsSold = 0;
+    let totalCapacity = 0;
 
-        return zoneSum + soldSeats * (zone.price || 0);
-      }, 0);
+    for (const event of events) {
+      if (event.zones) {
+        for (const zone of event.zones) {
+          totalCapacity += zone.totalSeats || 0;
 
-      return sum + eventRevenue;
-    }, 0);
-
-    const ticketsSold = events.reduce((sum, event) => {
-      if (!event.zones || !Array.isArray(event.zones)) {
-        return sum;
-      }
-
-      return (
-        sum +
-        event.zones.reduce((zoneSum, zone) => {
-          return (
-            zoneSum +
-            ((zone.totalSeats || 0) -
-              (zone.availableSeats || 0))
-          );
-        }, 0)
-      );
-    }, 0);
-
-    const totalCapacity = events.reduce((sum, event) => {
-      if (!event.zones || !Array.isArray(event.zones)) {
-        return sum;
-      }
-
-      return (
-        sum +
-        event.zones.reduce(
-          (zoneSum, zone) =>
-            zoneSum + (zone.totalSeats || 0),
-          0
-        )
-      );
-    }, 0);
-
-    const activeEvents = events.filter(event =>
-      ['ON_SALE', 'ON SALE'].includes(event.status)
-    ).length;
-
-    const revenueTrends = events.map(event => {
-      const revenue =
-        event.zones?.reduce((sum, zone) => {
-          const soldSeats =
+          const sold =
             (zone.totalSeats || 0) -
             (zone.availableSeats || 0);
 
-          return sum + soldSeats * (zone.price || 0);
-        }, 0) || 0;
+          ticketsSold += sold;
 
-      return {
-        date: event.title,
-        revenue,
-      };
-    });
+          totalRevenue += sold * (zone.price || 0);
+        }
+      }
+    }
 
     return {
       totalRevenue,
       ticketsSold,
       totalCapacity,
-      activeEvents,
-      // liveVisitors: 0,
-      revenueTrends,
+      activeEvents: events.length,
+      revenueTrends: [],
       recentTickets: [],
     };
   }
-};
-
-const getAdminToken = async () => {
-  // if (cachedToken) {
-  //   return cachedToken;
-  // }
-
-  const loginRes = await fetch(
-    'http://localhost:8080/api/auth/login',
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: 'admin@ticketrush.com',
-        password: 'admin123',
-      }),
-    }
-  );
-
-  const loginData = await loginRes.json();
-
-  console.log('LOGIN RESPONSE:', loginData);
-
-  const token = loginData?.result?.token;
-
-  if (!token) {
-    throw new Error('Không tìm thấy token');
-  }
-
-  // cachedToken = token;
-
-  return token;
 };
