@@ -2,119 +2,202 @@
 
 import { useState, useEffect, use } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Rocket, ArrowLeft, ArrowRight, Upload, Calendar, MapPin, Info, Plus, Minus, Trash2 } from 'lucide-react';
+import { Rocket, ArrowLeft, ArrowRight, Calendar, MapPin, Info, Plus, Trash2 } from 'lucide-react';
 import { apiService } from '@/services/apiService';
-import { Event } from '@/types';
+import { Event, Zone } from '@/types';
 import { useRouter } from 'next/navigation';
+
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api';
+
+// Bảng màu đồng bộ
+const TAILWIND_TO_HEX: Record<string, string> = {
+  'bg-error': '#EF4444',
+  'bg-primary': '#3B82F6',
+  'bg-secondary': '#6B7280',
+  'bg-emerald-500': '#10B981',
+  'bg-purple-500': '#8B5CF6',
+  'bg-amber-500': '#F59E0B'
+};
+
+const TIER_COLORS = Object.keys(TAILWIND_TO_HEX);
+
+// Hàm hỗ trợ format thời gian từ ISO ra định dạng input datetime-local
+const formatDateTimeLocal = (isoString?: string) => {
+  if (!isoString) return '';
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
 
 export default function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(true);
+  
+  // Lưu trữ dữ liệu gốc để xử lý logic "xóa"
+  const [originalZones, setOriginalZones] = useState<Zone[]>([]);
+  
+  // State quản lý UI
   const [images, setImages] = useState<string[]>([]);
   const [sections, setSections] = useState<any[]>([]);
   const [formData, setFormData] = useState<Partial<Event>>({});
+  const [selectedSectionId, setSelectedSectionId] = useState('');
 
+  // Lấy thông tin sự kiện từ Backend
   useEffect(() => {
-    apiService.getEvents().then(events => {
-      const found = events.find(e => e.id === Number(id));
-      if (found) {
-        setFormData(found);
-        setImages(found.posterUrl ? [found.posterUrl] : [
-          'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=1000&auto=format&fit=crop',
-          'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=1000&auto=format&fit=crop'
+    const fetchEventData = async () => {
+      try {
+        const event = await apiService.getEventById(Number(id));
+        
+        // Chuẩn bị form data (định dạng lại ngày tháng cho thẻ input)
+        setFormData({
+          ...event,
+          startTime: formatDateTimeLocal(event.startTime),
+          endTime: formatDateTimeLocal(event.endTime)
+        });
+
+        setImages(event.posterUrl ? [event.posterUrl] : [
+          'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=1000&auto=format&fit=crop'
         ]);
-        setSections([
-          { 
-            id: '1', 
-            name: found.venue || 'Khu vực sàn A', 
-            rows: 10, 
-            seatsPerRow: 12, 
-            tiers: [
-              { id: 't1', name: 'VIP Premium', price: 2000000, color: 'bg-error', rowCount: 2 },
-              { id: 't2', name: 'Thường', price: 1000000, color: 'bg-primary', rowCount: 8 }
-            ]
-          }
-        ]);
+
+        // Lưu trữ Zones gốc để sau này thực hiện xóa
+        setOriginalZones(event.zones || []);
+
+        // Chuyển đổi Zones từ Backend sang định dạng Sections của UI
+        if (event.zones && event.zones.length > 0) {
+          const mappedSections = event.zones.map((z, index) => {
+            // Tìm lại key màu Tailwind từ chuỗi HEX
+            const colorKey = Object.keys(TAILWIND_TO_HEX).find(k => TAILWIND_TO_HEX[k].toUpperCase() === z.colorHex?.toUpperCase()) || 'bg-primary';
+            return {
+              id: z.id.toString() || `zone-${index}`,
+              name: z.name,
+              rows: z.totalRows,
+              seatsPerRow: z.totalCols,
+              price: z.price,
+              color: colorKey
+            };
+          });
+          setSections(mappedSections);
+          setSelectedSectionId(mappedSections[0].id);
+        } else {
+          // Trải nghiệm fallback nếu sự kiện chưa có zone nào
+          const initialSectionId = Date.now().toString();
+          setSections([{ id: initialSectionId, name: 'Khu vực 1', rows: 5, seatsPerRow: 10, price: 0, color: 'bg-primary' }]);
+          setSelectedSectionId(initialSectionId);
+        }
+
+        setLoading(false);
+      } catch (error) {
+        console.error('Lỗi khi tải thông tin:', error);
+        alert('Không thể tải thông tin sự kiện. Vui lòng thử lại sau.');
+        router.push('/events');
       }
-      setLoading(false);
-    });
-  }, [id]);
+    };
+
+    fetchEventData();
+  }, [id, router]);
 
   if (loading) return <div className="p-10 text-center text-white/50 animate-pulse font-bold">Đang tải thông tin sự kiện...</div>;
 
-  const [selectedSectionId, setSelectedSectionId] = useState('1');
   const activeSection = sections.find(s => s.id === selectedSectionId) || sections[0];
 
-  const updateSection = (id: string, updates: any) => {
-    setSections(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
-  };
-
-  const adjustTierRowCount = (tierId: string, delta: number) => {
-    updateSection(activeSection.id, {
-      tiers: activeSection.tiers.map((t: any) => {
-        if (t.id === tierId) {
-          const newCount = Math.max(0, Math.min(activeSection.rows, t.rowCount + delta));
-          return { ...t, rowCount: newCount };
-        }
-        return t;
-      })
-    });
-  };
-
-  const TIER_COLORS = ['bg-error', 'bg-primary', 'bg-secondary', 'bg-emerald-500', 'bg-purple-500', 'bg-amber-500'];
-
-  const addTier = () => {
-    const colorIndex = activeSection.tiers.length % TIER_COLORS.length;
-    const newTier = {
-      id: `t${Date.now()}`,
-      name: `Hạng vé ${activeSection.tiers.length + 1}`,
+  // --- CÁC HÀM XỬ LÝ KHU VỰC CHỖ NGỒI ---
+  const addSection = () => {
+    const newId = Date.now().toString();
+    const colorIndex = sections.length % TIER_COLORS.length;
+    setSections([...sections, {
+      id: newId,
+      name: `Khu vực ${sections.length + 1}`,
+      rows: 5,
+      seatsPerRow: 10,
       price: 500000,
-      color: TIER_COLORS[colorIndex],
-      rowCount: 1
-    };
-    updateSection(activeSection.id, {
-      tiers: [...activeSection.tiers, newTier]
-    });
+      color: TIER_COLORS[colorIndex]
+    }]);
+    setSelectedSectionId(newId);
   };
 
-  const deleteTier = (tierId: string) => {
-    updateSection(activeSection.id, {
-      tiers: activeSection.tiers.filter((t: any) => t.id !== tierId)
-    });
-  };
-
-  const updateTier = (tierId: string, updates: any) => {
-    updateSection(activeSection.id, {
-      tiers: activeSection.tiers.map((t: any) => t.id === tierId ? { ...t, ...updates } : t)
-    });
-  };
-
-  const getTierForRow = (rowIndex: number) => {
-    let accumulatedRows = 0;
-    for (const tier of activeSection.tiers) {
-      accumulatedRows += tier.rowCount;
-      if (rowIndex < accumulatedRows) return tier;
+  const deleteSection = (sectionId: string) => {
+    if (sections.length === 1) {
+      alert('Sự kiện phải có ít nhất một khu vực!');
+      return;
     }
-    return null;
+    const newSections = sections.filter(s => s.id !== sectionId);
+    setSections(newSections);
+    if (selectedSectionId === sectionId) {
+      setSelectedSectionId(newSections[0].id);
+    }
   };
 
+  const updateSection = (sectionId: string, updates: any) => {
+    setSections(prev => prev.map(s => s.id === sectionId ? { ...s, ...updates } : s));
+  };
+
+  // --- ĐIỀU HƯỚNG ---
   const nextStep = () => setStep(s => s + 1);
   const prevStep = () => setStep(s => s - 1);
+  const onCancel = () => router.push('/events');
 
+  // --- LOGIC XUẤT BẢN (CHỈNH SỬA -> XÓA ZONE -> TẠO ZONE) ---
   const handlePublish = async () => {
-    await apiService.saveEvent({ ...formData, status: 'Selling' } as Event);
-    router.push('/events');
-  };
+    try {
+      // 1. Kiểm tra validation cơ bản
+      if (!formData.title || !formData.venue) {
+        alert('Vui lòng điền tên sự kiện và địa điểm!'); return;
+      }
+      const validSections = sections.filter(s => s.name.trim() !== '' && s.seatsPerRow > 0 && s.rows > 0);
+      if (validSections.length === 0) {
+        alert('Vui lòng thiết lập ít nhất một khu vực chỗ ngồi hợp lệ!'); return;
+      }
 
-  const onCancel = () => {
-    router.push('/events');
+      // 2. Lưu thông tin cơ bản sự kiện
+      const eventPayload = {
+        ...formData,
+        startTime: new Date(formData.startTime!).toISOString(),
+        endTime: new Date(formData.endTime!).toISOString(),
+        posterUrl: images.length > 0 ? images[0] : formData.posterUrl
+      } as Event;
+      
+      await apiService.saveEvent(eventPayload);
+
+      // 3. Xóa các Zone cũ bằng API trực tiếp
+      const token = localStorage.getItem('token') || '';
+      if (originalZones.length > 0) {
+        const deletePromises = originalZones.map(zone => 
+          fetch(`${BASE_URL}/admin/events/${id}/zones/${zone.id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+        );
+        await Promise.all(deletePromises);
+      }
+
+      // 4. Tạo lại các Zone mới
+      const createPromises = validSections.map(section => 
+        apiService.createZone(Number(id), {
+          name: section.name.trim(),
+          price: Number(section.price),
+          totalRows: Number(section.rows),
+          totalCols: Number(section.seatsPerRow),
+          colorHex: TAILWIND_TO_HEX[section.color] || '#FFFFFF',
+        })
+      );
+      
+      await Promise.all(createPromises);
+
+      alert('Cập nhật sự kiện thành công!');
+      router.push('/events');
+    } catch (error: any) {
+      console.error('Lỗi khi cập nhật:', error);
+      alert(`Có lỗi xảy ra: ${error.message || 'Vui lòng kiểm tra console'}`);
+    }
   };
 
   return (
     <div className="max-w-5xl mx-auto py-8">
-      {/* Step Header */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-12 font-sans px-4">
         <div>
           <h2 className="text-3xl font-black tracking-tight text-white uppercase italic">
@@ -129,20 +212,12 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
             Hủy bỏ
           </button>
           {step < 3 ? (
-            <button 
-              onClick={nextStep}
-              className="px-6 py-2.5 rounded-xl bg-ticketbox-green text-black font-black text-xs hover:brightness-110 shadow-lg shadow-ticketbox-green/20 transition-all flex items-center gap-2 uppercase tracking-widest"
-            >
-              Tiếp theo
-              <ArrowRight className="w-4 h-4" />
+            <button onClick={nextStep} className="px-6 py-2.5 rounded-xl bg-ticketbox-green text-black font-black text-xs hover:brightness-110 shadow-lg shadow-ticketbox-green/20 transition-all flex items-center gap-2 uppercase tracking-widest">
+              Tiếp theo <ArrowRight className="w-4 h-4" />
             </button>
           ) : (
-            <button 
-              onClick={handlePublish}
-              className="px-6 py-2.5 rounded-xl bg-white text-black font-black text-xs hover:bg-neutral-200 shadow-lg shadow-white/10 transition-all flex items-center gap-2 uppercase tracking-widest"
-            >
-              Lưu thay đổi
-              <Rocket className="w-4 h-4" />
+            <button onClick={handlePublish} className="px-6 py-2.5 rounded-xl bg-white text-black font-black text-xs hover:bg-neutral-200 shadow-lg shadow-white/10 transition-all flex items-center gap-2 uppercase tracking-widest">
+              Lưu thay đổi <Rocket className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -163,16 +238,10 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
         ))}
       </div>
 
-      {/* Content Form */}
       <AnimatePresence mode="wait">
+        {/* --- BƯỚC 1: THÔNG TIN SỰ KIỆN --- */}
         {step === 1 && (
-          <motion.div 
-            key="step1"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="space-y-8 px-4"
-          >
+          <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-8 px-4">
             <section className="bg-pure-black rounded-3xl shadow-sm border border-white/5 overflow-hidden">
                <div className="px-8 py-5 border-b border-white/5 bg-white/[0.02] flex items-center gap-3">
                  <Info className="w-5 h-5 text-ticketbox-green" />
@@ -181,252 +250,146 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                <div className="p-8 space-y-6">
                  <div className="space-y-2">
                    <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Tên sự kiện</label>
-                   <input 
-                    type="text" 
-                    placeholder="Ví dụ: Lễ hội Âm nhạc Mùa hè 2024"
-                    className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-ticketbox-green/20 outline-none transition-all font-bold text-white"
-                    value={formData.title}
-                    onChange={e => setFormData({...formData, title: e.target.value})}
-                   />
+                   <input type="text" placeholder="Ví dụ: Lễ hội Âm nhạc Mùa hè 2024" className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-ticketbox-green/20 outline-none font-bold text-white" value={formData.title || ''} onChange={e => setFormData({...formData, title: e.target.value})} />
+                 </div>
+                 <div className="space-y-2">
+                   <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Mô tả</label>
+                   <textarea rows={4} placeholder="Mô tả chi tiết về sự kiện..." className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3.5 font-bold text-white outline-none focus:ring-2 focus:ring-ticketbox-green/20 resize-none" value={formData.description || ''} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
+                 </div>
+                 <div className="space-y-2">
+                   <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Địa điểm</label>
+                   <input type="text" placeholder="Ví dụ: Sân vận động Mỹ Đình" className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3.5 font-bold text-white outline-none focus:ring-2 focus:ring-ticketbox-green/20" value={formData.venue || ''} onChange={e => setFormData({...formData, venue: e.target.value})} />
                  </div>
                  <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-2">
-                       <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Danh mục</label>
-                       <select 
-                         className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3.5 font-bold text-white outline-none focus:ring-2 focus:ring-ticketbox-green/20"
-                         value={formData.type}
-                         onChange={e => setFormData({...formData, type: e.target.value as any})}
-                       >
-                         <option value="Concert">Hòa nhạc (Concert)</option>
-                         <option value="Tech">Công nghệ</option>
-                         <option value="Festival">Lễ hội</option>
-                         <option value="Comedy">Hài kịch</option>
+                       <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Bắt đầu</label>
+                       <input type="datetime-local" className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3.5 font-bold text-white outline-none focus:ring-2 focus:ring-ticketbox-green/20" value={formData.startTime || ''} onChange={e => setFormData({...formData, startTime: e.target.value})} />
+                    </div>
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Kết thúc</label>
+                       <input type="datetime-local" className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3.5 font-bold text-white outline-none focus:ring-2 focus:ring-ticketbox-green/20" value={formData.endTime || ''} onChange={e => setFormData({...formData, endTime: e.target.value})} />
+                    </div>
+                 </div>
+                 <div className="grid grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Longitude</label>
+                       <input type="number" step="0.000001" placeholder="0.1" className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3.5 font-bold text-white outline-none focus:ring-2 focus:ring-ticketbox-green/20" value={formData.longitude || ''} onChange={e => setFormData({...formData, longitude: Number(e.target.value)})} />
+                    </div>
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Latitude</label>
+                       <input type="number" step="0.000001" placeholder="0.1" className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3.5 font-bold text-white outline-none focus:ring-2 focus:ring-ticketbox-green/20" value={formData.latitude || ''} onChange={e => setFormData({...formData, latitude: Number(e.target.value)})} />
+                    </div>
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Loại</label>
+                       <select className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3.5 font-bold text-white outline-none focus:ring-2 focus:ring-ticketbox-green/20" value={formData.type || 'LIVE_MUSIC'} onChange={e => setFormData({...formData, type: e.target.value as any})}>
+                         <option value="LIVE_MUSIC">LIVE_MUSIC</option>
+                         <option value="SPORTS">SPORTS</option>
+                         <option value="THEATER">THEATER</option>
                        </select>
                     </div>
                  </div>
                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Mô tả ngắn</label>
-                    <textarea 
-                      rows={4} 
-                      className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3.5 font-bold text-white outline-none focus:ring-2 focus:ring-ticketbox-green/20"
-                      placeholder="Mô tả tóm tắt về sự kiện của bạn..."
-                      value={formData.description}
-                      onChange={e => setFormData({...formData, description: e.target.value})}
-                    ></textarea>
+                       <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">URL Poster</label>
+                       <input type="url" placeholder="https://example.com/poster.jpg" className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3.5 font-bold text-white outline-none focus:ring-2 focus:ring-ticketbox-green/20" value={images[0] || formData.posterUrl || ''} onChange={e => setImages([e.target.value])} />
                  </div>
                </div>
             </section>
+          </motion.div>
+        )}
 
-            <section className="bg-pure-black rounded-3xl shadow-sm border border-white/5 overflow-hidden">
-               <div className="px-8 py-5 border-b border-white/5 bg-white/[0.02] flex items-center gap-3">
-                 <Calendar className="w-5 h-5 text-ticketbox-green" />
-                 <h3 className="font-black text-white uppercase tracking-tighter">Thời gian diễn ra</h3>
-               </div>
-               <div className="p-8 grid grid-cols-4 gap-6">
-                 <div className="space-y-2 col-span-2">
-                   <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Ngày bắt đầu</label>
-                   <input type="date" className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3.5 font-bold text-white outline-none focus:ring-2 focus:ring-ticketbox-green/20" />
-                 </div>
-                 <div className="space-y-2 col-span-2">
-                   <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Giờ bắt đầu</label>
-                   <input type="time" className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3.5 font-bold text-white outline-none focus:ring-2 focus:ring-ticketbox-green/20" />
-                 </div>
-               </div>
-            </section>
+        {/* --- BƯỚC 2: CHỈNH SỬA KHU VỰC (1 ZONE = 1 SECTION) --- */}
+        {step === 2 && (
+          <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex flex-col gap-6 px-4">
+            
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+              {sections.map(s => (
+                <div key={s.id} className="relative group">
+                  <button onClick={() => setSelectedSectionId(s.id)} className={`px-5 py-2.5 rounded-xl font-black text-xs whitespace-nowrap transition-all uppercase tracking-wider border flex items-center gap-2 ${selectedSectionId === s.id ? 'bg-ticketbox-green text-black border-ticketbox-green shadow-md shadow-ticketbox-green/20' : 'bg-pure-black text-white/40 border-white/5 hover:bg-white/5 hover:text-white'}`}>
+                    <div className={`w-2.5 h-2.5 rounded-full ${s.color}`}></div>
+                    {s.name || 'Khu vực mới'}
+                  </button>
+                  {selectedSectionId === s.id && (
+                     <button onClick={() => deleteSection(s.id)} className="absolute -top-2 -right-2 bg-error text-white p-1 rounded-full shadow-lg hover:scale-110 transition-transform">
+                       <Trash2 className="w-3 h-3" />
+                     </button>
+                  )}
+                </div>
+              ))}
+              <button onClick={addSection} className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/5 text-ticketbox-green font-black text-xs hover:bg-white/10 flex items-center gap-2 uppercase tracking-wider">
+                <Plus className="w-4 h-4" /> Thêm Khu Vực
+              </button>
+            </div>
 
-            <section className="bg-pure-black rounded-3xl shadow-sm border border-white/5 overflow-hidden">
-               <div className="px-8 py-5 border-b border-white/5 bg-white/[0.02] flex items-center gap-3">
-                 <MapPin className="w-5 h-5 text-ticketbox-green" />
-                 <h3 className="font-black text-white uppercase tracking-tighter">Địa điểm</h3>
-               </div>
-               <div className="p-8 grid grid-cols-3 gap-6">
-                 <div className="space-y-2">
-                   <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Tên địa điểm</label>
-                   <input type="text" placeholder="Ví dụ: SVĐ Quân khu 7" className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3.5 font-bold text-white outline-none focus:ring-2 focus:ring-ticketbox-green/20" />
-                 </div>
-                 <div className="space-y-2 col-span-2">
-                   <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Thành phố / Tỉnh</label>
-                   <input type="text" placeholder="Hồ Chí Minh, Việt Nam" className="w-full bg-white/5 border border-white/5 rounded-xl px-4 py-3.5 font-bold text-white outline-none focus:ring-2 focus:ring-ticketbox-green/20" />
-                 </div>
-               </div>
-            </section>
-            <section className="bg-pure-black rounded-3xl shadow-sm border border-white/5 overflow-hidden">
-               <div className="px-8 py-5 border-b border-white/5 bg-white/[0.02] flex items-center gap-3">
-                 <Upload className="w-5 h-5 text-ticketbox-green" />
-                 <h3 className="font-black text-white uppercase tracking-tighter">Hình ảnh minh họa</h3>
-               </div>
-               <div className="p-8 space-y-6">
-                 <div className="grid grid-cols-4 gap-4">
-                   {images.map((url, i) => (
-                     <div key={i} className="aspect-square rounded-2xl overflow-hidden border border-white/5 relative group">
-                       <img src={url} className="w-full h-full object-cover grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all" />
-                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <button onClick={() => setImages(images.filter((_, idx) => idx !== i))} className="bg-white text-black p-2 rounded-full hover:scale-110 transition-transform">
-                             <Trash2 className="w-4 h-4" />
-                          </button>
+            <div className="grid grid-cols-12 gap-8">
+              <div className="col-span-5 space-y-6">
+                <div className="bg-pure-black rounded-3xl shadow-sm border border-white/5 p-8 space-y-6">
+                   <h3 className="font-black text-lg text-white uppercase tracking-tighter">Cấu hình Hạng vé</h3>
+                   <div className="space-y-5">
+                     <div className="space-y-1">
+                       <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Tên khu vực</label>
+                       <input type="text" placeholder="Ví dụ: VIP, Thường..." value={activeSection.name} onChange={e => updateSection(activeSection.id, { name: e.target.value })} className="w-full bg-white/5 border border-white/5 rounded-xl py-3 px-4 font-bold text-white outline-none focus:ring-2 focus:ring-ticketbox-green/20" />
+                     </div>
+                     <div className="space-y-1">
+                       <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Giá vé (VND)</label>
+                       <div className="relative">
+                         <input type="text" value={activeSection.price === 0 ? '' : activeSection.price.toLocaleString()} placeholder="Nhập giá vé..." onChange={e => updateSection(activeSection.id, { price: parseInt(e.target.value.replace(/\D/g, '')) || 0 })} className="w-full bg-white/5 border border-white/5 rounded-xl py-3 pl-4 pr-12 font-bold text-ticketbox-green outline-none focus:ring-2 focus:ring-ticketbox-green/20" />
+                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-white/20 uppercase">VND</span>
                        </div>
                      </div>
-                   ))}
-                   <button className="aspect-square rounded-2xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-2 text-white/20 hover:border-ticketbox-green hover:text-ticketbox-green transition-all bg-white/[0.02]">
-                     <Upload className="w-6 h-6" />
-                     <span className="text-[10px] font-black uppercase tracking-widest">Tải ảnh</span>
-                   </button>
-                 </div>
-               </div>
-            </section>
-          </motion.div>
-        )}
-
-        {step === 2 && (
-          <motion.div 
-            key="step2"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="grid grid-cols-12 gap-8 px-4"
-          >
-            <div className="col-span-4 space-y-6">
-              <div className="bg-pure-black rounded-3xl shadow-sm border border-white/5 p-8 space-y-6">
-                 <h3 className="font-black text-lg text-white uppercase tracking-tighter">Trình sửa khu vực</h3>
-                 <div className="space-y-4">
-                   <div className="space-y-1">
-                     <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Tên khu vực</label>
-                     <input 
-                      type="text" 
-                      value={activeSection.name} 
-                      onChange={e => updateSection(activeSection.id, { name: e.target.value })}
-                      className="w-full bg-white/5 border border-white/5 rounded-xl py-3 px-4 font-bold text-white outline-none focus:ring-2 focus:ring-ticketbox-green/20" 
-                    />
-                   </div>
-                   <div className="grid grid-cols-2 gap-4">
-                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Số hàng</label>
-                        <input 
-                          type="number" 
-                          value={activeSection.rows} 
-                          onChange={e => updateSection(activeSection.id, { rows: parseInt(e.target.value) || 0 })}
-                          className="w-full bg-white/5 border border-white/5 rounded-xl py-3 px-4 font-bold text-white outline-none focus:ring-2 focus:ring-ticketbox-green/20" 
-                        />
+                     <div className="grid grid-cols-2 gap-4">
+                       <div className="space-y-1">
+                          <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Số hàng ghế</label>
+                          <input type="number" value={activeSection.rows} onChange={e => updateSection(activeSection.id, { rows: parseInt(e.target.value) || 0 })} className="w-full bg-white/5 border border-white/5 rounded-xl py-3 px-4 font-bold text-white outline-none focus:ring-2 focus:ring-ticketbox-green/20" />
+                       </div>
+                       <div className="space-y-1">
+                          <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Số ghế / 1 hàng</label>
+                          <input type="number" value={activeSection.seatsPerRow} onChange={e => updateSection(activeSection.id, { seatsPerRow: parseInt(e.target.value) || 0 })} className="w-full bg-white/5 border border-white/5 rounded-xl py-3 px-4 font-bold text-white outline-none focus:ring-2 focus:ring-ticketbox-green/20" />
+                       </div>
                      </div>
-                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-white/20 uppercase tracking-widest">Ghế mỗi hàng</label>
-                        <input 
-                          type="number" 
-                          value={activeSection.seatsPerRow} 
-                          onChange={e => updateSection(activeSection.id, { seatsPerRow: parseInt(e.target.value) || 0 })}
-                          className="w-full bg-white/5 border border-white/5 rounded-xl py-3 px-4 font-bold text-white outline-none focus:ring-2 focus:ring-ticketbox-green/20" 
-                        />
+                     <div className="space-y-2 pt-2 border-t border-white/5">
+                        <label className="text-[10px] font-black text-white/20 uppercase tracking-widest block mb-2">Màu sắc hiển thị</label>
+                        <div className="flex gap-3">
+                          {TIER_COLORS.map(color => (
+                            <button key={color} onClick={() => updateSection(activeSection.id, { color })} title="Chọn màu này" className={`w-6 h-6 rounded-full transition-all ${color} ${activeSection.color === color ? 'ring-2 ring-offset-2 ring-offset-pure-black ring-white scale-125 shadow-md' : 'opacity-40 hover:opacity-100 hover:scale-110'}`} />
+                          ))}
+                        </div>
                      </div>
                    </div>
-                 </div>
-              </div>
-
-              <div className="bg-pure-black rounded-3xl shadow-sm border border-white/5 p-8 space-y-6">
-                 <div className="flex justify-between items-center">
-                   <h3 className="font-black text-lg text-white uppercase tracking-tighter">Hạng vé</h3>
-                   <button onClick={addTier} className="text-[10px] text-ticketbox-green font-black uppercase tracking-widest hover:underline flex items-center gap-1">
-                     <Plus className="w-3 h-3" /> Thêm
-                   </button>
-                 </div>
-                 <div className="space-y-4">
-                    {activeSection.tiers.map((tier: any) => (
-                      <div key={tier.id} className="p-5 rounded-2xl border border-white/5 bg-white/[0.02] space-y-4">
-                        <div className="flex justify-between items-center">
-                          <div className="flex gap-3 items-center">
-                            <div className={`w-5 h-5 rounded shadow-sm ${tier.color}`}></div>
-                            <input 
-                              type="text" 
-                              value={tier.name}
-                              onChange={e => updateTier(tier.id, { name: e.target.value })}
-                              className="text-xs font-black text-white bg-transparent border-none p-0 focus:ring-0 w-32 uppercase tracking-widest"
-                            />
-                          </div>
-                          <button onClick={() => deleteTier(tier.id)} className="text-white/20 hover:text-error transition-colors">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                        
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-2">
-                             <input 
-                               type="text" 
-                               value={tier.price.toLocaleString()}
-                               onChange={e => updateTier(tier.id, { price: parseInt(e.target.value.replace(/\D/g, '')) || 0 })}
-                               className="text-xs font-black text-white bg-white/5 border border-white/5 rounded-lg px-3 py-1.5 w-28"
-                            />
-                             <span className="text-[10px] text-white/20 font-black uppercase">VND</span>
-                          </div>
-                          
-                          <div className="flex items-center gap-3 bg-white/5 border border-white/5 rounded-lg p-1">
-                             <button 
-                               onClick={() => adjustTierRowCount(tier.id, -1)}
-                               className="p-1.5 hover:bg-white/5 rounded text-white/20 transition-colors"
-                             >
-                               <Minus className="w-3 h-3" />
-                             </button>
-                             <div className="flex flex-col items-center min-w-[35px]">
-                               <span className="text-xs font-black text-white leading-none">{tier.rowCount}</span>
-                               <span className="text-[8px] text-white/20 font-black uppercase tracking-tighter">Hàng</span>
-                             </div>
-                             <button 
-                               onClick={() => adjustTierRowCount(tier.id, 1)}
-                               className="p-1.5 hover:bg-white/5 rounded text-white/20 transition-colors"
-                             >
-                               <Plus className="w-3 h-3" />
-                             </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                 </div>
-              </div>
-            </div>
-
-            <div className="col-span-8 bg-white/[0.01] rounded-3xl border border-white/5 overflow-hidden flex flex-col items-center p-12 shadow-inner font-sans">
-               <div className="w-full max-w-xl h-12 bg-pure-black border border-white/10 rounded-t-[40px] flex items-center justify-center text-white/20 text-[10px] font-black tracking-[0.8em] mb-12 shadow-2xl relative">
-                 SÂN KHẤU
-               </div>
-               <div className="overflow-auto max-h-[500px] w-full flex justify-center p-4">
-                <div className="flex flex-col gap-2.5">
-                  {Array.from({length: activeSection.rows}).map((_, r) => {
-                    const rowTier = getTierForRow(r);
-                    return (
-                      <div key={r} className="flex gap-2.5">
-                        {Array.from({length: activeSection.seatsPerRow}).map((_, c) => {
-                          return (
-                            <div 
-                              key={c} 
-                              className={`w-8 h-8 rounded-lg shadow-sm transition-all hover:scale-125 cursor-help ${
-                                rowTier ? rowTier.color : 'bg-white/5 border border-white/5'
-                              }`} 
-                            />
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
                 </div>
-               </div>
-               <div className="mt-12 flex flex-wrap justify-center gap-8 p-6 bg-pure-black rounded-3xl shadow-sm border border-white/5">
-                  {activeSection.tiers.map((tier: any) => (
-                    <div key={tier.id} className="flex items-center gap-3">
-                      <div className={`w-5 h-5 ${tier.color} rounded shadow-sm`}></div>
-                      <span className="text-[10px] font-black text-white/20 tracking-[0.2em] uppercase">{tier.name}</span>
-                    </div>
-                  ))}
-               </div>
+              </div>
+
+              <div className="col-span-7 bg-white/[0.01] rounded-3xl border border-white/5 overflow-hidden flex flex-col items-center p-8 shadow-inner font-sans relative">
+                 <div className="absolute top-4 left-6 flex items-center gap-2">
+                    <div className={`w-3 h-3 rounded-full ${activeSection.color}`}></div>
+                    <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">{activeSection.name || 'Khu vực mới'}</span>
+                 </div>
+                 <div className="w-full max-w-sm h-10 bg-pure-black border border-white/10 rounded-t-[30px] flex items-center justify-center text-white/20 text-[10px] font-black tracking-[0.8em] mb-10 shadow-2xl mt-4">
+                   SÂN KHẤU
+                 </div>
+                 <div className="overflow-auto max-h-[500px] w-full flex justify-center p-4 scrollbar-hide">
+                  <div className="flex flex-col gap-2">
+                    {Array.from({length: activeSection.rows}).map((_, r) => {
+                      return (
+                        <div key={r} className="flex gap-2 items-center">
+                          <span className="text-[8px] font-black text-white/20 w-4 text-right pr-2">{r + 1}</span>
+                          {Array.from({length: activeSection.seatsPerRow}).map((_, c) => {
+                            return (
+                              <div key={c} title={`${activeSection.name} - Hàng ${r+1} Ghế ${c+1}`} className={`w-6 h-6 sm:w-8 sm:h-8 rounded-lg shadow-sm transition-all hover:scale-110 cursor-help ${activeSection.color}`} />
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
+                 </div>
+              </div>
             </div>
           </motion.div>
         )}
 
+        {/* --- BƯỚC 3: TỔNG KẾT --- */}
         {step === 3 && (
-          <motion.div 
-            key="step3"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="grid grid-cols-3 gap-8 px-4"
-          >
+          <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="grid grid-cols-3 gap-8 px-4">
             <div className="col-span-2 space-y-8">
               <section className="bg-pure-black rounded-3xl shadow-sm border border-white/5 p-8 space-y-8 font-sans">
                 <h3 className="text-xl font-black border-b border-white/5 pb-6 text-white uppercase tracking-tighter">Tổng kết sự kiện</h3>
@@ -435,14 +398,29 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                     <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">Tên sự kiện</span>
                     <span className="text-2xl font-black text-white">{formData.title || '(Chưa đặt tên)'}</span>
                   </div>
+                  <div className="flex flex-col gap-3 px-8 py-6 bg-white/[0.02] border border-white/5 rounded-[2rem]">
+                    <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">Mô tả</span>
+                    <span className="text-lg font-bold text-white/60">{formData.description || '(Chưa có mô tả)'}</span>
+                  </div>
                   <div className="grid grid-cols-2 gap-6">
                      <div className="p-8 bg-white/[0.02] rounded-[2rem] border border-white/5 flex items-center gap-5">
                         <div className="bg-ticketbox-green text-black p-4 rounded-2xl shadow-lg shadow-ticketbox-green/20">
                            <Calendar className="w-7 h-7" />
                         </div>
                         <div>
-                          <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-1">Ngày diễn ra</p>
-                          <p className="text-lg font-black text-white">21 Tháng 6, 2024</p>
+                          <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-1">Bắt đầu</p>
+                          <p className="text-lg font-black text-white">{formData.startTime ? new Date(formData.startTime).toLocaleDateString('vi-VN', { day: 'numeric', month: 'long', year: 'numeric' }) : '(Chưa chọn ngày)'}</p>
+                          <p className="text-sm font-bold text-white/40">{formData.startTime ? new Date(formData.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : ''}</p>
+                        </div>
+                     </div>
+                     <div className="p-8 bg-white/[0.02] rounded-[2rem] border border-white/5 flex items-center gap-5">
+                        <div className="bg-white text-black p-4 rounded-2xl shadow-lg shadow-white/20">
+                           <Calendar className="w-7 h-7" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-1">Kết thúc</p>
+                          <p className="text-lg font-black text-white">{formData.endTime ? new Date(formData.endTime).toLocaleDateString('vi-VN', { day: 'numeric', month: 'long', year: 'numeric' }) : '(Chưa chọn ngày)'}</p>
+                          <p className="text-sm font-bold text-white/40">{formData.endTime ? new Date(formData.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : ''}</p>
                         </div>
                      </div>
                      <div className="p-8 bg-white/[0.02] rounded-[2rem] border border-white/5 flex items-center gap-5">
@@ -451,28 +429,16 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
                         </div>
                         <div>
                           <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-1">Địa điểm</p>
-                          <p className="text-lg font-black text-black">Trung tâm SECC, Q.7</p>
+                          <p className="text-lg font-black text-white">{formData.venue || '(Chưa chọn địa điểm)'}</p>
                         </div>
                      </div>
                   </div>
-                </div>
-              </section>
-            </div>
-
-            <div className="space-y-8">
-               <section className="bg-pure-black rounded-3xl shadow-sm border border-white/5 p-8 space-y-6">
-                <h4 className="font-black text-sm text-white uppercase tracking-widest">Thiết lập xuất bản</h4>
-                <div className="space-y-4">
-                  {[
-                    'Đưa lên Chợ sự kiện TicketRush',
-                    'Bật thông báo mở bán sớm',
-                    'Yêu cầu xác minh danh tính (KYC)'
-                  ].map((setting, i) => (
-                    <label key={i} className="flex items-center gap-4 p-4 hover:bg-white/5 rounded-2xl cursor-pointer transition-colors border border-transparent hover:border-white/5">
-                      <input type="checkbox" defaultChecked className="w-5 h-5 rounded-lg text-ticketbox-green focus:ring-ticketbox-green/20 border-white/10 bg-transparent" />
-                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">{setting}</span>
-                    </label>
-                  ))}
+                  <div className="flex flex-col gap-3 px-8 py-6 bg-white/[0.02] border border-white/5 rounded-[2rem]">
+                    <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">Poster sự kiện</span>
+                    <div className="w-full h-48 bg-white/5 rounded-2xl overflow-hidden border border-white/10">
+                      <img src={images[0] || formData.posterUrl} alt="Event poster" className="w-full h-full object-cover" />
+                    </div>
+                  </div>
                 </div>
               </section>
             </div>
@@ -482,24 +448,15 @@ export default function EditEventPage({ params }: { params: Promise<{ id: string
 
       <div className="mt-12 pt-8 border-t border-white/5 flex justify-between items-center text-white/20 font-sans px-4">
         {step > 1 && (
-          <button 
-            onClick={prevStep}
-            className="flex items-center gap-2 px-8 py-3.5 rounded-xl border-2 border-ticketbox-green text-ticketbox-green font-black hover:bg-ticketbox-green/5 transition-all active:scale-95 uppercase tracking-widest text-xs"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Quay lại
+          <button onClick={prevStep} className="flex items-center gap-2 px-8 py-3.5 rounded-xl border-2 border-ticketbox-green text-ticketbox-green font-black hover:bg-ticketbox-green/5 transition-all active:scale-95 uppercase tracking-widest text-xs">
+            <ArrowLeft className="w-5 h-5" /> Quay lại
           </button>
         )}
         <div className="flex gap-4 ml-auto">
-          <button className="px-8 py-3.5 rounded-xl font-black text-[10px] text-white/20 hover:text-white transition-colors uppercase tracking-widest">Lưu bản nháp</button>
-          
+          <button onClick={onCancel} className="px-8 py-3.5 rounded-xl font-black text-[10px] text-white/20 hover:text-white transition-colors uppercase tracking-widest">Hủy bỏ</button>
           {step === 3 && (
-             <button 
-              onClick={handlePublish}
-              className="bg-ticketbox-green text-black px-10 py-3.5 rounded-xl font-black shadow-xl shadow-ticketbox-green/20 flex items-center gap-2 hover:brightness-110 active:scale-95 transition-all uppercase tracking-widest text-xs"
-            >
-              Lưu thay đổi
-              <Rocket className="w-5 h-5" />
+             <button onClick={handlePublish} className="bg-ticketbox-green text-black px-10 py-3.5 rounded-xl font-black shadow-xl shadow-ticketbox-green/20 flex items-center gap-2 hover:brightness-110 active:scale-95 transition-all uppercase tracking-widest text-xs">
+              Lưu thay đổi <Rocket className="w-5 h-5" />
             </button>
           )}
         </div>
