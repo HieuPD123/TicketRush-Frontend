@@ -1,3 +1,5 @@
+import { API_ENDPOINTS } from "@/lib/api-config";
+
 export type LoginRequest = {
   email: string;
   password: string;
@@ -20,15 +22,7 @@ export async function loginAccount(
   request: LoginRequest
 ): Promise<LoginResult> {
   
-  const url = process.env.NEXT_PUBLIC_AUTH_LOGIN_URL;
-
-  if (!url) {
-    return {
-      ok: false,
-      message:
-        "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
-    };
-  }
+  const url = API_ENDPOINTS.auth.login;
 
   try {
     const res = await fetch(url, {

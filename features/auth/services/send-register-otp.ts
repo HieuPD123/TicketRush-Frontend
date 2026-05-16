@@ -1,3 +1,5 @@
+import { API_ENDPOINTS } from "@/lib/api-config";
+
 export type SendOtpRequest = {
   email: string;
 };
@@ -17,16 +19,7 @@ export type SendRegisterOtpResult = {
 export async function sendRegisterOtp(
   request: SendOtpRequest,
 ): Promise<SendRegisterOtpResult> {
-  const url =
-    process.env.NEXT_PUBLIC_AUTH_SEND_REGISTER_OTP_URL;
-
-  if (!url) {
-    return {
-      ok: false,
-      code: null,
-      message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
-    };
-  }
+  const url = API_ENDPOINTS.auth.sendRegisterOtp;
 
   try {
     const res = await fetch(url, {

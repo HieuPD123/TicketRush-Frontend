@@ -1,3 +1,5 @@
+import { API_ENDPOINTS } from "@/lib/api-config";
+
 type CheckQueueResponse = {
     code: number;
     message: string;
@@ -5,14 +7,7 @@ type CheckQueueResponse = {
 };
 
 export async function checkQueue(eventId: number): Promise<CheckQueueResponse> {
-    const url = `${process.env.NEXT_PUBLIC_CHECK_QUEUE_URL}/${eventId}`;
-
-    if (!process.env.NEXT_PUBLIC_CHECK_QUEUE_URL) {
-        return {
-            code: 500,
-            message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
-        };
-    }
+    const url = `${API_ENDPOINTS.queue.check}/${eventId}`;
 
     try {
         const res = await fetch(url, {

@@ -1,3 +1,4 @@
+import { API_ENDPOINTS } from "@/lib/api-config";
 import type { Seat } from "../../events/types";
 
 export type GetEventSeatsResponse = {
@@ -13,17 +14,7 @@ export type GetEventSeatsResult = {
 };
 
 export const getEventSeats = async (eventId: number): Promise<GetEventSeatsResult> => {
-    const url = process.env.NEXT_PUBLIC_EVENTS_URL;
-
-    if (!url) {
-        return {
-            ok: false,
-            message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
-            data: [],
-        };
-    }
-
-    const endpoint = `${url}/${eventId}/seats`;
+    const url = `${API_ENDPOINTS.events.list}/${eventId}/seats`;
 
     try {
         const res = await fetch(endpoint, {

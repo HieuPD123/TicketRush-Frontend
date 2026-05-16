@@ -1,3 +1,4 @@
+import { API_ENDPOINTS } from "@/lib/api-config";
 
 export type Me = {
     email: string;
@@ -18,15 +19,7 @@ export type GetMeResult = {
 };
 
 export async function getMe(): Promise<GetMeResult> {
-    const url = process.env.NEXT_PUBLIC_AUTH_ME_URL;
-
-    if (!url) {
-    return {
-            ok: false,
-            message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
-            result: null,
-    };
-  }
+    const url = API_ENDPOINTS.auth.me;
 
   try {
     const res = await fetch(url, {

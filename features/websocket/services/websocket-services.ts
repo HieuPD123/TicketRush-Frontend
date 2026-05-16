@@ -1,7 +1,8 @@
 import { Client, type IMessage, type StompSubscription } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
+import { API_ENDPOINTS } from "@/lib/api-config";
 
-const WS_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL;
+const WS_URL = API_ENDPOINTS.websocket.url;
 
 type SubscriptionListener = {
   destination: string;

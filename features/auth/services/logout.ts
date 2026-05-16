@@ -1,9 +1,7 @@
-export async function logoutAccount(): Promise<{ ok: true } | { ok: false }> {
-  const url = process.env.NEXT_PUBLIC_AUTH_LOGOUT_URL;
+import { API_ENDPOINTS } from "@/lib/api-config";
 
-  if (!url) {
-    return { ok: false };
-  }
+export async function logoutAccount(): Promise<{ ok: true } | { ok: false }> {
+  const url = API_ENDPOINTS.auth.logout;
 
   try {
     const res = await fetch(url, {

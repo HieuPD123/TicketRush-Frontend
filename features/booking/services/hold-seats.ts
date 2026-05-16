@@ -1,3 +1,4 @@
+import { API_ENDPOINTS } from "@/lib/api-config";
 import { Seat } from "../../events/types";
 
 type HoldSeatsRequest = {
@@ -25,15 +26,7 @@ export type HoldSeatsResult = {
 }
 
 export const holdSeats = async (request: HoldSeatsRequest): Promise<HoldSeatsResult> => {
-    const url = process.env.NEXT_PUBLIC_BOOKING_URL;
-
-    if (!url) {
-        return {
-            ok: false,
-            message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
-            data: null,
-        };
-    }
+    const url = API_ENDPOINTS.booking.base;
 
     try {
         const res = await fetch(url, {

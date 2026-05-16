@@ -1,3 +1,4 @@
+import { API_ENDPOINTS } from "@/lib/api-config";
 import { Info } from "@/features/user/services/get-my-info";
 
 export type NewUserInfo = {
@@ -19,15 +20,7 @@ type PostMyInfoResult = {
 };
 
 export async function postMyInfo(newInfo: NewUserInfo): Promise<PostMyInfoResult> {
-    const url = process.env.NEXT_PUBLIC_USER_PROFILE_URL;
-
-    if (!url) {
-        return {
-            ok: false,
-            message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
-            result: null,
-        };
-    }
+    const url = API_ENDPOINTS.user.profile;
 
     try {
         const res = await fetch(url, {

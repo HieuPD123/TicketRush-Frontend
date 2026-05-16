@@ -1,3 +1,4 @@
+import { API_ENDPOINTS } from "@/lib/api-config";
 import type { Category, Event } from "../types";
 
 export type GetEventsRequest = {
@@ -31,15 +32,7 @@ export type GetEventsResult = {
 };
 
 export const getEvents = async (request: GetEventsRequest): Promise<GetEventsResult> => {
-    const url = process.env.NEXT_PUBLIC_EVENTS_URL;
-
-    if (!url) {
-        return {
-            ok: false,
-            message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
-            data: null,
-        };
-    }
+    const url = API_ENDPOINTS.events.list;
 
     const queryParams = new URLSearchParams();
 

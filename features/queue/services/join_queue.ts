@@ -1,3 +1,5 @@
+import { API_ENDPOINTS } from "@/lib/api-config";
+
 export type QueueDescription = {
     position: number;
     totalInQueue: number;
@@ -17,16 +19,7 @@ type JoinQueueResult = {
 };
 
 export async function joinQueue(eventId: number): Promise<JoinQueueResult> {
-    const url = `${process.env.NEXT_PUBLIC_QUEUE_JOIN_URL}/${eventId}`;
-
-    if (!process.env.NEXT_PUBLIC_QUEUE_JOIN_URL) {
-        return {
-            ok: false,
-            message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
-            status: null,
-        };
-
-    }
+    const url = `${API_ENDPOINTS.queue.join}/${eventId}`;
     try {
         const res = await fetch(url, {
             method: "POST",

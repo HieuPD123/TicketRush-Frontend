@@ -1,3 +1,4 @@
+import { API_ENDPOINTS } from "@/lib/api-config";
 
 type ApiResponse = {
     code: boolean;
@@ -12,15 +13,7 @@ export type CancelBookingResult = {
 };
 
 export async function cancelBooking(bookingId: number): Promise<CancelBookingResult> {
-    const url = `${process.env.NEXT_PUBLIC_BOOKING_URL}/${bookingId}`;
-
-    if (!process.env.NEXT_PUBLIC_BOOKING_URL) {
-        return {
-            ok: false,
-            message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
-            data: null,
-        };
-    }
+    const url = `${API_ENDPOINTS.booking.base}/${bookingId}`;
 
     try {
         const res = await fetch(url, {

@@ -1,3 +1,4 @@
+import { API_ENDPOINTS } from "@/lib/api-config";
 import { SendOtpRequest } from "./send-register-otp";
 
 type ApiResponse = {
@@ -13,15 +14,7 @@ export type SendResetPasswordOtpResult = {
 }
 
 export async function sendResetPasswordOtp(request: SendOtpRequest): Promise<SendResetPasswordOtpResult> {
-    const url = process.env.NEXT_PUBLIC_AUTH_SEND_RESET_PASSWORD_OTP_URL;
-
-    if (!url) {
-        return {
-            ok: false,
-            code: null,
-            message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
-        };
-    }
+    const url = API_ENDPOINTS.auth.sendResetPasswordOtp;
 
     try {
         const res = await fetch(url, {

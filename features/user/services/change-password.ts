@@ -1,3 +1,5 @@
+import { API_ENDPOINTS } from "@/lib/api-config";
+
 type ChangePasswordRequest = {
     currentPassword: string;
     newPassword: string;
@@ -16,15 +18,7 @@ type ChangePasswordResult = {
 }
 
 export async function changePassword(request: ChangePasswordRequest): Promise<ChangePasswordResult> {
-    const url = process.env.NEXT_PUBLIC_AUTH_CHANGE_PASSWORD_URL;
-
-    if (!url) {
-        return {
-            ok: false,
-            code: null,
-            message: "Không thể kết nối tới server. Vui lòng thử lại sau.",
-        };
-    }
+    const url = API_ENDPOINTS.auth.changePassword;
 
     try {
         const res = await fetch(url, {

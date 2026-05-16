@@ -1,3 +1,4 @@
+import { API_ENDPOINTS } from "@/lib/api-config";
 import { Info } from "@/features/user/services/get-my-info";
 
 type ApiResponse = {
@@ -13,15 +14,7 @@ export type PostMyAvatarResult = {
 };
 
 export async function postMyAvatar(file: File): Promise<PostMyAvatarResult> {
-	const url = process.env.NEXT_PUBLIC_USER_AVATAR_URL;
-
-	if (!url) {
-		return {
-			ok: false,
-			message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
-			result: null,
-		};
-	}
+	const url = API_ENDPOINTS.user.avatar;
 
 	const formData = new FormData();
 	formData.append("file", file);

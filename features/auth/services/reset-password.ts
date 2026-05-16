@@ -1,3 +1,5 @@
+import { API_ENDPOINTS } from "@/lib/api-config";
+
 export type SendOtpRequest = {
     email: string;
     otp: string;
@@ -17,15 +19,7 @@ type ChangePasswordResult = {
 }
 
 export async function changePassword(request: SendOtpRequest): Promise<ChangePasswordResult> {
-    const url = process.env.NEXT_PUBLIC_AUTH_RESET_PASSWORD_URL;
-
-    if (!url) {
-        return {
-            ok: false,
-            code: null,
-            message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
-        };
-    }
+    const url = API_ENDPOINTS.auth.resetPassword;
 
     try {
         const res = await fetch(url, {

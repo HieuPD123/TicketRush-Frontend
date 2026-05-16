@@ -1,15 +1,8 @@
+import { API_ENDPOINTS } from "@/lib/api-config";
 import {ApiRespone, HoldSeatsResult as ConfirmBookingResult} from "./hold-seats";
 
 export const confirmBooking = async (bookingId: number): Promise<ConfirmBookingResult> => {
-    const url = `${process.env.NEXT_PUBLIC_BOOKING_URL}/${bookingId}/confirm`;
-
-    if (!process.env.NEXT_PUBLIC_BOOKING_URL) {
-        return {
-            ok: false,
-            message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
-            data: null,
-        };
-    }
+    const url = `${API_ENDPOINTS.booking.base}/${bookingId}/confirm`;
 
     try {
         const res = await fetch(url, {

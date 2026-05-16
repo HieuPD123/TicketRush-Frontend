@@ -1,3 +1,5 @@
+import { API_ENDPOINTS } from "@/lib/api-config";
+
 export type RegisterGender = "MALE" | "FEMALE" | "OTHER";
 
 type Result = {
@@ -34,15 +36,7 @@ export type RegisterResult = {
 export async function registerAccount(
   request: RegisterRequest,
 ): Promise<RegisterResult> {
-  const url = process.env.NEXT_PUBLIC_AUTH_REGISTER_URL;
-  
-  if (!url) {
-    return {
-      ok: false,
-      message:
-        "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
-    };
-  }
+  const url = API_ENDPOINTS.auth.register;
 
     try {
     const res = await fetch(url, {

@@ -1,3 +1,4 @@
+import { API_ENDPOINTS } from "@/lib/api-config";
 import type { Event } from "@/features/events/types";
 
 type TrendingEventResponse = {
@@ -7,15 +8,7 @@ type TrendingEventResponse = {
 };
 
 export async function getTrendingEvents(): Promise<TrendingEventResponse> {
-  const url = process.env.NEXT_PUBLIC_TRENDING_EVENTS_URL;
-
-  if (!url) {
-        return {
-            code: 500,
-            message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
-            result: [],
-        };
-    }
+  const url = API_ENDPOINTS.events.trending;
 
   try {
     const res = await fetch(url, {

@@ -1,3 +1,4 @@
+import { API_ENDPOINTS } from "@/lib/api-config";
 import { Event } from "../types";
 
 export type GetSpotlightEventResponse = {
@@ -7,15 +8,7 @@ export type GetSpotlightEventResponse = {
 };
 
 export async function getSpotlightEvent(): Promise<GetSpotlightEventResponse> {
-    const url = process.env.NEXT_PUBLIC_EVENT_SPOTLIGHT_URL;
-
-    if (!url) {
-        return {
-            code: 500,
-            message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
-            result: {} as Event,
-        };
-    }
+    const url = API_ENDPOINTS.events.spotlight;
 
     try {
         const res = await fetch(url, {

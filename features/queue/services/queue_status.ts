@@ -1,3 +1,5 @@
+import { API_ENDPOINTS } from "@/lib/api-config";
+
 type QueueStatus = {
     status: "WAITING" | "GRANTED" | "EXPIRED";
     position: number;
@@ -12,14 +14,7 @@ type QueueStatusResponse = {
 }
 
 export async function getQueueStatus(eventId: number): Promise<QueueStatusResponse> {
-    const url = `${process.env.NEXT_PUBLIC_QUEUE_STATUS_URL}/${eventId}`;
-
-    if (!process.env.NEXT_PUBLIC_QUEUE_STATUS_URL) {
-        return {
-            code: 500,
-            message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
-        };
-    }
+    const url = `${API_ENDPOINTS.queue.status}/${eventId}`;
 
     try {
         const res = await fetch(url, {

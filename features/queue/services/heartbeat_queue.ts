@@ -1,17 +1,12 @@
+import { API_ENDPOINTS } from "@/lib/api-config";
+
 type HeartBeatResult = {
     code: number;
     message: string;
 }
 
 export async function sendHeartBeat(eventId: number): Promise<HeartBeatResult> {
-    const url = `${process.env.NEXT_PUBLIC_QUEUE_HEARTBEAT_URL}/${eventId}`;
-
-    if (!process.env.NEXT_PUBLIC_QUEUE_HEARTBEAT_URL) {
-        return {
-            code: 500,
-            message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
-        };
-    }
+    const url = `${API_ENDPOINTS.queue.heartbeat}/${eventId}`;
 
     try {
         const res = await fetch(url, {

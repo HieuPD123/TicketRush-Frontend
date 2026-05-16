@@ -1,3 +1,5 @@
+import { API_ENDPOINTS } from "@/lib/api-config";
+
 export type TicketInfo = {
     id: number;
     qrCode: string;
@@ -25,15 +27,7 @@ export type GetMyTicketResult = {
 };
 
 export async function getMyTicket(): Promise<GetMyTicketResult> {
-    const url = process.env.NEXT_PUBLIC_USER_TICKETS_URL;
-
-    if (!url) {
-        return {
-            ok: false,
-            message: "Không thể kết nối tới server. Xin vui lòng thử lại sau.",
-            data: null,
-        };
-    }
+    const url = API_ENDPOINTS.user.tickets;
 
     try {
         const res = await fetch(url, {
