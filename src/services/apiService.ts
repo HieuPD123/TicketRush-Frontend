@@ -1,13 +1,18 @@
 import type { Event, LoginResponse, Customer, Zone, Seat, EventStats } from '@/types';
 import { get } from 'http';
+import { CreateEventRequest } from '../types';
 
-const API_BASE_URL = 'http://localhost:8080/api';
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api';
+
+function getToken(): string {
+  return localStorage.getItem('token') || '';
+}
 
 export const login = async (
   email: string,
   password: string
 ): Promise<LoginResponse['result']> => {
-  const res = await fetch(`${API_BASE_URL}/auth/login`, {
+  const res = await fetch(`${BASE_URL}/auth/login`, {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -41,7 +46,7 @@ const apiCall = async <T = any>(
   options: RequestInit = {},
   successCodes: number[] = [1000]
 ): Promise<T> => {
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const res = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
     credentials: 'include',
     headers: {
@@ -54,7 +59,7 @@ const apiCall = async <T = any>(
     const errorText = await res.text();
 
     console.error('API ERROR:', {
-      url: `${API_BASE_URL}${endpoint}`,
+      url: `${BASE_URL}${endpoint}`,
       status: res.status,
       body: errorText,
     });
@@ -126,14 +131,31 @@ export const apiService = {
       colorHex: string;
     }
   ) {
-    return await apiCall(
-      `/admin/events/${eventId}/zones`,
-      {
+    console.log('Sending zone data:', zoneData);
+
+    try {
+      const res = await fetch(`${BASE_URL}/admin/events/${eventId}/zones`, {
         method: 'POST',
         body: JSON.stringify(zoneData),
-      },
-      [1000, 1073741824]
-    );
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`,
+        },
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Backend response:', errorText);
+        throw new Error(`Network response was not ok (${res.status})`);
+      }
+
+      const data = await res.json();
+      return data.result;
+    } catch (error) {
+      console.error('Error in createZone:', error);
+      throw error;
+    }
   },
 
   async saveEvent(eventData: Event): Promise<Event> {
@@ -206,3 +228,19 @@ export const apiService = {
     return await apiCall<EventStats>(`/admin/events/${eventId}/audience`);
   }
 };
+
+export async function createEvent(eventData: CreateEventRequest): Promise<void> {
+  const response = await fetch(`${BASE_URL}/events`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${getToken()}`,
+    },
+    credentials: 'include',
+    body: JSON.stringify(eventData),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to create event: ${response.statusText}`);
+  }
+}

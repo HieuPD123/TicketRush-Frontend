@@ -109,3 +109,16 @@ export interface EventStats {
   ageGroupStats: AgeGroupStat[];
   genderStats: GenderStat[];
 }
+
+export interface CreateEventRequest {
+  title: string;
+  description: string;
+  venue: string;
+  startTime: string;
+  endTime: string;
+  longitude: number;
+  latitude: number;
+  type: 'LIVE_MUSIC' | 'SPORTS' | 'THEATER';
+  posterUrl: string;
+  endTimeAfterStartTime: boolean;
+}
