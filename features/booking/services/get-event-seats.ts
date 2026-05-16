@@ -17,7 +17,7 @@ export const getEventSeats = async (eventId: number): Promise<GetEventSeatsResul
     const url = `${API_ENDPOINTS.events.list}/${eventId}/seats`;
 
     try {
-        const res = await fetch(endpoint, {
+        const res = await fetch(url, {
             method: "GET",
             cache: "no-store",
             headers: {

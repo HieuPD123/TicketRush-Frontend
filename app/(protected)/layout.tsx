@@ -1,8 +1,9 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { API_ENDPOINTS } from "@/lib/api-config";
 
 async function isAuthenticated() {
-  const url = process.env.NEXT_PUBLIC_AUTH_ME_URL;
+  const url = API_ENDPOINTS.auth.me;
 
   if (!url) {
     return false;

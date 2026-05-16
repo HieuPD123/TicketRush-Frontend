@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Flame } from "lucide-react";
+import { Flame, ChevronLeft, ChevronRight } from "lucide-react";
 
 import EventCard, { type EventCardData } from "@/features/events/components/event-card";
 import type { Event } from "@/features/events/types";
@@ -133,21 +133,43 @@ export default function TrendingEventsSection({ events }: { events: Event[] }) {
           </AnimatePresence>
         </div>
 
-        {/* Pagination dots */}
+        {/* Navigation */}
         {totalPages > 1 && (
-          <div className="mt-7 flex justify-center gap-2">
-            {Array.from({ length: totalPages }).map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => goTo(i)}
-                aria-label={`Trang ${i + 1}`}
-                className={`h-2 rounded-full transition-all duration-300 ${i === page
-                  ? "w-7 bg-primary"
-                  : "w-2 bg-foreground/25 hover:bg-foreground/45"
-                  }`}
-              />
-            ))}
+          <div className="mt-7 flex items-center justify-center gap-4">
+            <button
+              type="button"
+              onClick={() => goTo(Math.max(0, page - 1))}
+              disabled={page === 0}
+              aria-label="Trang trước"
+              className="rounded-lg p-2 text-foreground/60 transition hover:bg-foreground/5 hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-foreground/60"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+
+            <div className="flex gap-2">
+              {Array.from({ length: totalPages }).map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => goTo(i)}
+                  aria-label={`Trang ${i + 1}`}
+                  className={`h-2 rounded-full transition-all duration-300 ${i === page
+                    ? "w-7 bg-primary"
+                    : "w-2 bg-foreground/25 hover:bg-foreground/45"
+                    }`}
+                />
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => goTo(Math.min(totalPages - 1, page + 1))}
+              disabled={page === totalPages - 1}
+              aria-label="Trang sau"
+              className="rounded-lg p-2 text-foreground/60 transition hover:bg-foreground/5 hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-foreground/60"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
           </div>
         )}
       </div>

@@ -10,6 +10,12 @@ export function useRelatedEvents(currentEventId: number, eventType: Category | u
 
   useEffect(() => {
     const fetchRelatedEvents = async () => {
+      if (!eventType) {
+        setAllEvents([]);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
 
@@ -31,12 +37,7 @@ export function useRelatedEvents(currentEventId: number, eventType: Category | u
       setLoading(false);
     };
 
-    if (eventType) {
-      fetchRelatedEvents();
-    } else {
-      setAllEvents([]);
-      setLoading(false);
-    }
+    fetchRelatedEvents();
   }, [currentEventId, eventType]);
 
   // Group events into pages (3 events per page)

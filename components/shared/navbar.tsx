@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ChevronDown,
   ChevronRight,
-  Flame,
+  GraduationCap,
   Globe2,
   LayoutGrid,
   LogOut,
@@ -43,7 +43,7 @@ const CATEGORY_ICONS: Record<Category, React.ReactNode> = {
   LIVE_MUSIC: <Music className="h-4 w-4 text-primary" />,
   PERFORMING_ARTS: <Theater className="h-4 w-4 text-violet-400" />,
   SPORTS: <Trophy className="h-4 w-4 text-amber-400" />,
-  SEMINARS_AND_WORKSHOPS: <Flame className="h-4 w-4 text-orange-400" />,
+  SEMINARS_AND_WORKSHOPS: <GraduationCap className="h-4 w-4 text-cyan-400" />,
   TOURS_AND_EXPERIENCES: <Globe2 className="h-4 w-4 text-emerald-400" />,
   OTHER: <LayoutGrid className="h-4 w-4 text-slate-400" />,
 };

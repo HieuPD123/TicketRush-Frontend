@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Flame,
+  GraduationCap,
   Globe2,
   LayoutGrid,
   Music,
@@ -48,9 +48,9 @@ const CATEGORY_META: Record<Category, CategoryMeta> = {
   },
   SEMINARS_AND_WORKSHOPS: {
     label: "Hội thảo & Workshop",
-    icon: <Flame className="h-8 w-8 text-white" />,
-    gradient: "from-orange-500 via-amber-500 to-yellow-500",
-    glow: "rgba(249,115,22,0.55)",
+    icon: <GraduationCap className="h-8 w-8 text-white" />,
+    gradient: "from-blue-500 via-cyan-500 to-teal-400",
+    glow: "rgba(6,182,212,0.55)",
   },
   TOURS_AND_EXPERIENCES: {
     label: "Tour & Trải nghiệm",
@@ -247,10 +247,9 @@ function CategoryBlock({
       <div className="flex items-center justify-between gap-3">
         <h3 className="flex items-center gap-2 text-base font-extrabold tracking-tight">
           <span
-            className={`inline-grid h-7 w-7 place-items-center rounded-lg bg-linear-to-br ${meta.gradient}`}
+            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-linear-to-br ${meta.gradient} [&>svg]:h-4 [&>svg]:w-4`}
           >
-            {/* scale-down icon to fit */}
-            <span className="scale-[0.6]">{meta.icon}</span>
+            {meta.icon}
           </span>
           <span
             className={`bg-linear-to-r ${meta.gradient} bg-clip-text text-transparent`}

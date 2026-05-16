@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Calendar, Clock, Filter, MapPin, Ticket } from "lucide-react";
 import Image from "next/image";
+import QRCode from "react-qr-code";
 
 import ProfileSidebar from "@/features/user/components/profile-sidebar";
 import {
@@ -74,6 +75,7 @@ function TicketCard({
   price,
   issuedAt,
   isEnded,
+  qrCode,
 }: {
   title: string;
   venue: string;
@@ -85,6 +87,7 @@ function TicketCard({
   price: number;
   issuedAt: string;
   isEnded: boolean;
+  qrCode?: string;
 }) {
   const statusLabel = useMemo(() => {
     const normalized = status.trim().toUpperCase();
@@ -102,7 +105,18 @@ function TicketCard({
 
   return (
     <article className="flex overflow-hidden rounded-4xl border border-border bg-surface/45 shadow-[0_18px_70px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-      <div className="relative hidden w-52 shrink-0 bg-surface-2/65 md:block" />
+      <div className="relative hidden w-60 shrink-0 border-r border-dashed border-border/40 bg-surface-2/65 p-5 md:flex md:items-center md:justify-center">
+        {qrCode && (
+          <div className="w-full max-w-[160px] rounded-2xl bg-white p-3 shadow-sm">
+            <QRCode
+              value={qrCode}
+              size={256}
+              style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+              viewBox={`0 0 256 256`}
+            />
+          </div>
+        )}
+      </div>
       <div className="flex min-w-0 flex-1 flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h2 className="line-clamp-2 text-base font-extrabold tracking-tight sm:text-lg">
@@ -381,6 +395,7 @@ export default function MyTicketsDashboard() {
                       price={ticket.price}
                       issuedAt={ticket.issuedAt}
                       isEnded={isEndedFromTimes(ticket.startTime, ticket.endTime, new Date())}
+                      qrCode={ticket.qrCode}
                     />
                   </motion.div>
                 ))}
