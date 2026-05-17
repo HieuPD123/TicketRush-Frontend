@@ -14,11 +14,12 @@ export type GetEventByIdResult = {
 };
 
 export const getEventById = async (id: number): Promise<GetEventByIdResult> => {
-	const url = `${API_ENDPOINTS.events.list}/${id}`;
+	const url = API_ENDPOINTS.events.detail(id);
 
 	try {
 		const res = await fetch(url, {
 			method: "GET",
+			credentials: "include",
 			cache: "no-store",
 			headers: {
 				Accept: "application/json",

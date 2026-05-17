@@ -1,5 +1,5 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
-const WS_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL || "ws://localhost:8080";
+const WS_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL || "http://localhost:8080/ws";
 
 export const API_ENDPOINTS = {
   // Auth
@@ -27,6 +27,7 @@ export const API_ENDPOINTS = {
     trending: `${BASE_URL}/api/events/trending`,
     spotlight: `${BASE_URL}/api/events/spotlight`,
     byType: `${BASE_URL}/api/events/by-type`,
+    detail: (id: number) => `${BASE_URL}/api/events/${id}/detail`,
   },
 
   // Booking
@@ -40,7 +41,7 @@ export const API_ENDPOINTS = {
     leave: `${BASE_URL}/api/queue/leave`,
     status: `${BASE_URL}/api/queue/status`,
     check: `${BASE_URL}/api/queue/check`,
-    heartbeat: `${BASE_URL}/queue/heartbeat`,
+    heartbeat: `${BASE_URL}/api/queue/heartbeat`,
   },
 
   // WebSocket

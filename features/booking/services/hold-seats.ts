@@ -14,7 +14,7 @@ export type BookingResult = {
 }
 
 export type ApiRespone = {
-    code: number;
+    code: number | string;
     message: string;
     result: BookingResult;
 }
@@ -23,6 +23,7 @@ export type HoldSeatsResult = {
     ok: boolean;
     message: string;
     data: ApiRespone | null;
+    statusCode?: number;
 }
 
 export const holdSeats = async (request: HoldSeatsRequest): Promise<HoldSeatsResult> => {
@@ -46,6 +47,7 @@ export const holdSeats = async (request: HoldSeatsRequest): Promise<HoldSeatsRes
             ok: true,
             message: data.message,
             data,
+            statusCode: res.status,
         };
     }
 
@@ -53,12 +55,14 @@ export const holdSeats = async (request: HoldSeatsRequest): Promise<HoldSeatsRes
         ok: false,
         message: data.message || "Đặt chỗ thất bại. Vui lòng thử lại.",
         data: null,
+        statusCode: res.status,
     };
     } catch {
         return {
             ok: false,
             message: "Không thể kết nối tới server. Vui lòng thử lại sau.",
             data: null,
+            statusCode: 500,
         };
     }
 }

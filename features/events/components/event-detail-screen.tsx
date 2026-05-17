@@ -1,9 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Calendar, Clock, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 import dynamic from "next/dynamic";
 
@@ -13,8 +13,8 @@ import { useGetEventById } from "@/features/events/hooks/use-get-event-by-id";
 import { useRelatedEvents } from "@/features/events/hooks/use-related-events";
 import { formatIsoToDobDisplay } from "@/features/auth/utils/date-of-birth";
 import { formatPriceVND } from "@/features/events/utils/format-price";
-import { useQueue } from "@/features/queue/hooks/use-queue";
-import QueueScreen from "@/features/queue/components/queue-screen";
+import { checkQueue } from "@/features/queue/services/check_queue";
+import { sendHeartBeat } from "@/features/queue/services/heartbeat_queue";
 
 function formatDateTime(value: string): string {
   const date = new Date(value);
@@ -68,35 +68,28 @@ export default function EventDetailScreen({ eventId }: { eventId: number }) {
   const [isHoveringImage, setIsHoveringImage] = useState(false);
   const [isHoveringDetailZone, setIsHoveringDetailZone] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  const [showQueue, setShowQueue] = useState(false);
+  const [isCheckingQueue, setIsCheckingQueue] = useState(false);
   const [queueError, setQueueError] = useState<string | null>(null);
   const router = useRouter();
 
-  const { state: queueState, isGranted, isExpired, joinQueueFlow, leaveQueueFlow } = useQueue(eventId);
-
-  const handleLeaveQueue = async () => {
-    await leaveQueueFlow();
-    setShowQueue(false);
-    setQueueError(null);
-  };
-
   // When queue grants access → navigate to booking
-  const grantedRef = useRef(false);
-  useEffect(() => {
-    if (isGranted && !grantedRef.current) {
-      grantedRef.current = true;
-      setShowQueue(false);
-      router.push(`/events/${eventId}/booking?granted=1`);
-    }
-  }, [isGranted, eventId, router]);
-
   // When queue expires → show error, hide queue screen
   useEffect(() => {
-    if (isExpired) {
-      setShowQueue(false);
+    if (false) {
       setQueueError("Hết thời gian chờ. Vui lòng thử lại.");
     }
-  }, [isExpired]);
+  }, []);
+
+  useEffect(() => {
+    if (!Number.isFinite(eventId) || eventId <= 0) return;
+
+    void sendHeartBeat(eventId);
+    const heartbeatId = window.setInterval(() => {
+      void sendHeartBeat(eventId);
+    }, 25_000);
+
+    return () => window.clearInterval(heartbeatId);
+  }, [eventId]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 1024px)");
@@ -142,18 +135,18 @@ export default function EventDetailScreen({ eventId }: { eventId: number }) {
 
   const handleBuyTicket = async () => {
     setQueueError(null);
-    if (event?.queueRequired) {
-      grantedRef.current = false;
-      setShowQueue(true);
-      await joinQueueFlow();
-      // If joinQueueFlow sets error, reflect it
-      if (queueState.error) {
-        setShowQueue(false);
-        setQueueError(queueState.error);
-      }
-    } else {
-      router.push(bookingHref);
+    setIsCheckingQueue(true);
+
+    await sendHeartBeat(eventId);
+    const result = await checkQueue(eventId);
+    setIsCheckingQueue(false);
+
+    if (!result.ok) {
+      setQueueError(result.message || "Khong the kiem tra hang cho. Vui long thu lai.");
+      return;
     }
+
+    router.push(result.required ? `/events/${eventId}/queue` : bookingHref);
   };
 
   return (
@@ -250,14 +243,14 @@ export default function EventDetailScreen({ eventId }: { eventId: number }) {
                 whileTap={{ scale: 0.99 }}
                 transition={{ type: "spring", stiffness: 260, damping: 22 }}
                 onClick={handleBuyTicket}
-                disabled={queueState.isLoading}
+                disabled={isCheckingQueue}
                 className="cursor-pointer mt-4 inline-flex h-12 w-full items-center justify-center rounded-full bg-linear-to-r from-primary to-secondary text-sm font-bold text-foreground shadow-[0_0_0_1px_rgba(255,255,255,0.06)] outline-none transition focus:ring-4 focus:ring-primary/20 disabled:opacity-60 disabled:cursor-not-allowed"
                 style={{
                   boxShadow:
                     "0 0 0 1px rgba(255,255,255,0.06), 0 22px 70px color-mix(in srgb, var(--primary) 20%, transparent)",
                 }}
               >
-                {queueState.isLoading ? "Đang vào hàng chờ..." : "Mua vé ngay"}
+                {isCheckingQueue ? "Dang kiem tra..." : "Mua vé ngay"}
               </motion.button>
             </div>
           </motion.aside>
@@ -378,13 +371,6 @@ export default function EventDetailScreen({ eventId }: { eventId: number }) {
         )}
       </section>
     </div>
-
-      {/* Queue overlay */}
-      <AnimatePresence>
-        {showQueue && (
-          <QueueScreen state={queueState} onLeave={handleLeaveQueue} />
-        )}
-      </AnimatePresence>
     </>
   );
 }

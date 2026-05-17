@@ -4,6 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { joinQueue } from "@/features/queue/services/join_queue";
 import { sendHeartBeat } from "@/features/queue/services/heartbeat_queue";
 import { leaveQueue } from "@/features/queue/services/leave_queue";
+import {
+  getQueueStatus,
+  type QueueStatusResult,
+} from "@/features/queue/services/queue_status";
 import { websocketService } from "@/features/websocket/services/websocket-services";
 
 export type QueueStatus = "WAITING" | "GRANTED" | "EXPIRED" | "IDLE";
@@ -17,122 +21,140 @@ export type QueueState = {
   error: string | null;
 };
 
-const HEARTBEAT_INTERVAL_MS = 30_000;
+const HEARTBEAT_INTERVAL_MS = 25_000;
+const POLL_INTERVAL_MS = 5_000;
 
-export function useQueue(eventId: number) {
-  const [state, setState] = useState<QueueState>({
-    status: "IDLE",
-    position: 0,
-    totalInQueue: 0,
-    estimatedWaitSeconds: 0,
-    isLoading: false,
-    error: null,
-  });
+const initialState: QueueState = {
+  status: "IDLE",
+  position: 0,
+  totalInQueue: 0,
+  estimatedWaitSeconds: 0,
+  isLoading: false,
+  error: null,
+};
 
-  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const unsubscribeRef = useRef<(() => void) | null>(null);
+export function useQueue(eventId: number, onGranted?: () => void) {
+  const [state, setState] = useState<QueueState>(initialState);
+  const grantedRef = useRef(false);
+  const bootSeqRef = useRef(0);
 
-  const stopHeartbeat = useCallback(() => {
-    if (heartbeatRef.current) {
-      clearInterval(heartbeatRef.current);
-      heartbeatRef.current = null;
+  const applyStatus = useCallback((next: QueueStatusResult) => {
+    setState((prev) => ({
+      ...prev,
+      status: next.status,
+      position: next.position,
+      totalInQueue: next.totalInQueue,
+      estimatedWaitSeconds: next.estimatedWaitSeconds,
+      isLoading: false,
+      error: next.status === "EXPIRED" ? "Phien hang cho da het han. Vui long thu lai." : null,
+    }));
+
+    if (next.status === "GRANTED" && !grantedRef.current) {
+      grantedRef.current = true;
+      onGranted?.();
     }
-  }, []);
-
-  const startHeartbeat = useCallback(() => {
-    stopHeartbeat();
-    heartbeatRef.current = setInterval(() => {
-      void sendHeartBeat(eventId);
-    }, HEARTBEAT_INTERVAL_MS);
-  }, [eventId, stopHeartbeat]);
-
-  const handleSocketMessage = useCallback((raw: string) => {
-    try {
-      const msg = JSON.parse(raw) as {
-        eventId: number;
-        status: QueueStatus;
-        position: number;
-        totalInQueue: number;
-        estimatedWaitSeconds: number;
-      };
-
-      setState((prev) => ({
-        ...prev,
-        status: msg.status,
-        position: msg.position,
-        totalInQueue: msg.totalInQueue,
-        estimatedWaitSeconds: msg.estimatedWaitSeconds,
-      }));
-
-      if (msg.status === "GRANTED" || msg.status === "EXPIRED") {
-        stopHeartbeat();
-      }
-    } catch {
-      // ignore malformed messages
-    }
-  }, [stopHeartbeat]);
+  }, [onGranted]);
 
   const joinQueueFlow = useCallback(async () => {
-    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+    if (!Number.isFinite(eventId) || eventId <= 0) return;
 
-    const result = await joinQueue(eventId);
+    const seq = ++bootSeqRef.current;
+    grantedRef.current = false;
 
-    if (!result.ok) {
+    setState((prev) => ({
+      ...prev,
+      isLoading: true,
+      error: null,
+    }));
+
+    const joined = await joinQueue(eventId);
+    if (seq !== bootSeqRef.current) return;
+
+    if (!joined.ok || !joined.status) {
       setState((prev) => ({
         ...prev,
         isLoading: false,
-        error: result.message,
+        error: joined.message,
       }));
       return;
     }
 
-    // Seed initial state from join response (idempotent: returns existing position if already in queue)
-    setState((prev) => ({
-      ...prev,
-      isLoading: false,
-      status: "WAITING",
-      position: result.status?.position ?? 0,
-      totalInQueue: result.status?.totalInQueue ?? 0,
+    applyStatus({
+      status: joined.status.position === 0 ? "GRANTED" : "WAITING",
+      position: joined.status.position,
+      totalInQueue: joined.status.totalInQueue,
       estimatedWaitSeconds: 0,
-    }));
+    });
 
-    // Connect WebSocket & subscribe
-    websocketService.connect();
-    unsubscribeRef.current = websocketService.subscribe(
+    const current = await getQueueStatus(eventId);
+    if (seq !== bootSeqRef.current) return;
+
+    if (current.ok && current.status) {
+      applyStatus(current.status);
+    } else if (current.statusCode !== 400) {
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: current.message,
+      }));
+    }
+  }, [applyStatus, eventId]);
+
+  useEffect(() => {
+    if (!Number.isFinite(eventId) || eventId <= 0) {
+      return;
+    }
+
+    let mounted = true;
+
+    const unsubscribe = websocketService.subscribe(
       `/user/queue/queue/${eventId}`,
-      handleSocketMessage,
+      (body) => {
+        if (!mounted) return;
+
+        try {
+          applyStatus(JSON.parse(body) as QueueStatusResult);
+        } catch {
+          // Ignore malformed realtime messages; polling remains as fallback.
+        }
+      },
     );
 
-    // Start heartbeat
-    startHeartbeat();
-  }, [eventId, handleSocketMessage, startHeartbeat]);
+    websocketService.connect();
+    const bootId = window.setTimeout(() => {
+      void joinQueueFlow();
+    }, 0);
 
-  // Cleanup on unmount
-  useEffect(() => {
+    const heartbeatId = window.setInterval(() => {
+      void sendHeartBeat(eventId);
+    }, HEARTBEAT_INTERVAL_MS);
+
+    const pollId = window.setInterval(async () => {
+      const next = await getQueueStatus(eventId);
+      if (!mounted || !next.ok || !next.status) return;
+      applyStatus(next.status);
+    }, POLL_INTERVAL_MS);
+
     return () => {
-      stopHeartbeat();
-      unsubscribeRef.current?.();
+      mounted = false;
+      bootSeqRef.current += 1;
+      window.clearTimeout(bootId);
+      window.clearInterval(heartbeatId);
+      window.clearInterval(pollId);
+      unsubscribe();
     };
-  }, [stopHeartbeat]);
+  }, [applyStatus, eventId, joinQueueFlow]);
 
   const leaveQueueFlow = useCallback(async (): Promise<{ ok: boolean; message: string }> => {
-    stopHeartbeat();
-    unsubscribeRef.current?.();
-    unsubscribeRef.current = null;
-
     const result = await leaveQueue(eventId);
 
-    setState((prev) => ({
-      ...prev,
-      status: "IDLE",
-      position: 0,
-      totalInQueue: 0,
-      estimatedWaitSeconds: 0,
-      error: null,
-    }));
+    setState({
+      ...initialState,
+      error: result.ok ? null : result.message,
+    });
 
-    return { ok: result.code === 200, message: result.message };
-  }, [eventId, stopHeartbeat]);
+    return { ok: result.ok, message: result.message };
+  }, [eventId]);
 
   const isGranted = state.status === "GRANTED";
   const isWaiting = state.status === "WAITING";

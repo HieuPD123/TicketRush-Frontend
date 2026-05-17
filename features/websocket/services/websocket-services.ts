@@ -4,6 +4,22 @@ import { API_ENDPOINTS } from "@/lib/api-config";
 
 const WS_URL = API_ENDPOINTS.websocket.url;
 
+function toSockJsUrl(value: string) {
+  const url = new URL(value);
+
+  if (url.protocol === "ws:") {
+    url.protocol = "http:";
+  } else if (url.protocol === "wss:") {
+    url.protocol = "https:";
+  }
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("NEXT_PUBLIC_WEBSOCKET_URL must use http, https, ws, or wss");
+  }
+
+  return url.toString();
+}
+
 type SubscriptionListener = {
   destination: string;
   callback: (msg: string) => void;
@@ -24,8 +40,10 @@ class WebSocketService {
       throw new Error("NEXT_PUBLIC_WEBSOCKET_URL is missing");
     }
 
+    const sockJsUrl = toSockJsUrl(WS_URL);
+
     this.client = new Client({
-      webSocketFactory: () => new SockJS(WS_URL),
+      webSocketFactory: () => new SockJS(sockJsUrl),
       reconnectDelay: 5000,
       heartbeatIncoming: 10000,
       heartbeatOutgoing: 10000,
