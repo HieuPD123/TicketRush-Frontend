@@ -8,7 +8,22 @@ const nextConfig: NextConfig = {
         hostname: "salt.tkbcdn.com",
         pathname: "/**",
       },
-      // add other allowed remote patterns here
+      {
+        protocol: "https",
+        hostname: "cdn-img.thethao247.vn",
+        pathname: "/**",
+      },
+      // Allow any remote image URL (use with caution).
+      {
+        protocol: "https",
+        hostname: "**",
+        pathname: "/**",
+      },
+      {
+        protocol: "http",
+        hostname: "**",
+        pathname: "/**",
+      },
     ],
   },
   allowedDevOrigins: ["26.96.49.135"],

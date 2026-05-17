@@ -67,10 +67,17 @@ function CountUnit({ value, label }: { value: number; label: string }) {
    Spotlight Hero (with real event data)
 ────────────────────────────────────────────────────────── */
 function SpotlightHero({ event }: { event: Event }) {
-  const [timeLeft, setTimeLeft] = useState(getTimeLeft(event.startTime));
+  const [timeLeft, setTimeLeft] = useState(() => ({
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
+  }));
 
   useEffect(() => {
-    const id = setInterval(() => setTimeLeft(getTimeLeft(event.startTime)), 1_000);
+    const tick = () => setTimeLeft(getTimeLeft(event.startTime));
+    tick(); // ensure we update immediately after mount (client only)
+    const id = setInterval(tick, 1_000);
     return () => clearInterval(id);
   }, [event.startTime]);
 

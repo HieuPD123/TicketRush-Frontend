@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import {
   ArrowLeft,
   Armchair,
@@ -53,6 +54,14 @@ function statusChipClass(status: Event["status"]) {
 function clampPct(value: number | null | undefined) {
   if (typeof value !== "number" || Number.isNaN(value)) return 0;
   return Math.max(0, Math.min(100, value));
+}
+
+function genderColor(raw: string) {
+  const key = raw.trim().toUpperCase();
+  if (key === "MALE" || key === "M") return "#60A5FA"; // blue-400
+  if (key === "FEMALE" || key === "F") return "#F472B6"; // pink-400
+  if (key === "OTHER") return "#A78BFA"; // violet-400
+  return "#34D399"; // emerald-400 fallback
 }
 
 function genderLabel(raw: string) {
@@ -181,6 +190,33 @@ export default function AdminEventDetail({ eventId }: { eventId: number }) {
       return String(a.zoneId).localeCompare(String(b.zoneId));
     });
   }, [statsQuery.data?.zoneStats]);
+
+  const genderPieData = useMemo(() => {
+    const genderStats = audienceQuery.data?.genderStats ?? [];
+    return genderStats
+      .filter((item) => Number(item?.count ?? 0) > 0)
+      .map((item) => {
+        const pct = clampPct(item.percentage);
+        return {
+          key: String(item.gender),
+          name: genderLabel(String(item.gender)),
+          value: Number(item.count) || 0,
+          percentage: pct,
+          color: genderColor(String(item.gender)),
+        };
+      });
+  }, [audienceQuery.data?.genderStats]);
+
+  const ageDistributionData = useMemo(() => {
+    const ageStats = audienceQuery.data?.ageGroupStats ?? [];
+    return ageStats
+      .filter((item) => Number(item?.count ?? 0) > 0)
+      .map((item) => ({
+        key: String(item.ageGroup),
+        label: ageGroupLabel(String(item.ageGroup)),
+        percentage: clampPct(item.percentage),
+      }));
+  }, [audienceQuery.data?.ageGroupStats]);
 
   useEffect(() => {
     if (!editingField) return;
@@ -819,65 +855,89 @@ export default function AdminEventDetail({ eventId }: { eventId: number }) {
                 </div>
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-2">
-                <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-                  <div className="text-sm font-semibold text-white/90">Giới tính</div>
-                  <div className="mt-4 space-y-3">
-                    {(audienceQuery.data.genderStats ?? []).map((g) => {
-                      const pct = clampPct(g.percentage);
-                      return (
-                        <div key={String(g.gender)} className="space-y-2">
-                          <div className="flex items-center justify-between gap-3 text-sm">
-                            <span className="font-semibold text-white/80">{genderLabel(String(g.gender))}</span>
-                            <span className="text-xs font-semibold text-white/55">
-                              {g.count} • {`${pct.toFixed(1)}%`}
-                            </span>
-                          </div>
-                          <div className="h-2.5 w-full rounded-full bg-white/10">
-                            <div
-                              className="h-2.5 rounded-full bg-primary shadow-[0_0_18px_rgba(124,58,237,0.35)] transition-[width]"
-                              style={{ width: `${pct.toFixed(1)}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {!audienceQuery.data.genderStats?.length ? (
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/60">
-                        Chưa có dữ liệu giới tính.
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
+              <div className="rounded-3xl border border-white/10 bg-black/35 p-5">
+                {genderPieData.length ? (
+                  <div className="grid min-w-0 gap-6 md:grid-cols-[minmax(0,220px)_1fr] md:items-center">
+                    <div className="min-w-0">
+                      <ResponsiveContainer width="100%" aspect={1.15} minWidth={0} minHeight={180}>
+                        <PieChart>
+                          <Tooltip
+                            contentStyle={{
+                              background: "rgba(12, 12, 18, 0.95)",
+                              border: "1px solid rgba(255,255,255,0.12)",
+                              borderRadius: 12,
+                              color: "rgba(255,255,255,0.92)",
+                              fontSize: 12,
+                            }}
+                            formatter={(value: unknown, name: unknown, payload: unknown) => {
+                              const val = typeof value === "number" ? value : Number(value);
+                              const p = payload as { payload?: { percentage?: number } } | null;
+                              const pct = clampPct(p?.payload?.percentage);
+                              return [`${Number.isFinite(val) ? val : 0} • ${pct.toFixed(0)}%`, String(name)];
+                            }}
+                          />
+                          <Pie
+                            data={genderPieData}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={58}
+                            outerRadius={86}
+                            cornerRadius={2}
+                            paddingAngle={3}
+                            stroke="rgba(255,255,255,0.06)"
+                            strokeWidth={1}
+                          >
+                            {genderPieData.map((item) => (
+                              <Cell key={item.key} fill={item.color} />
+                            ))}
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
 
-                <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-                  <div className="text-sm font-semibold text-white/90">Nhóm tuổi</div>
-                  <div className="mt-4 space-y-3">
-                    {(audienceQuery.data.ageGroupStats ?? []).map((a) => {
-                      const pct = clampPct(a.percentage);
-                      return (
-                        <div key={String(a.ageGroup)} className="space-y-2">
-                          <div className="flex items-center justify-between gap-3 text-sm">
-                            <span className="font-semibold text-white/80">{ageGroupLabel(String(a.ageGroup))}</span>
-                            <span className="text-xs font-semibold text-white/55">
-                              {a.count} • {`${pct.toFixed(1)}%`}
+                    <div className="space-y-3">
+                      {genderPieData.map((item) => (
+                        <div key={item.key} className="flex items-center justify-between gap-4 rounded-xl bg-white/[0.03] px-3 py-2">
+                          <div className="flex items-center gap-3">
+                            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
+                            <span className="text-base font-extrabold uppercase tracking-wide text-white/90">
+                              {item.name}
                             </span>
                           </div>
-                          <div className="h-2.5 w-full rounded-full bg-white/10">
-                            <div
-                              className="h-2.5 rounded-full bg-secondary shadow-[0_0_18px_rgba(59,130,246,0.25)] transition-[width]"
-                              style={{ width: `${pct.toFixed(1)}%` }}
-                            />
-                          </div>
+                          <span className="text-base font-extrabold text-white/90">{`${item.percentage.toFixed(0)}%`}</span>
                         </div>
-                      );
-                    })}
-                    {!audienceQuery.data.ageGroupStats?.length ? (
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/60">
-                        Chưa có dữ liệu nhóm tuổi.
-                      </div>
-                    ) : null}
+                      ))}
+                    </div>
                   </div>
+                ) : (
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/60">
+                    Chưa có dữ liệu giới tính.
+                  </div>
+                )}
+
+                <div className="mt-8 text-xs font-bold uppercase tracking-[0.2em] text-white/40">Phân bố độ tuổi</div>
+                <div className="mt-4 space-y-4">
+                  {ageDistributionData.map((item) => (
+                    <div key={item.key}>
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="font-bold tracking-wide text-white/75">{item.label}</span>
+                        <span className="text-lg font-black text-white">{`${item.percentage.toFixed(0)}%`}</span>
+                      </div>
+                      <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-white/8">
+                        <div
+                          className="h-full rounded-full bg-emerald-400 transition-[width]"
+                          style={{ width: `${item.percentage.toFixed(1)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  {!ageDistributionData.length ? (
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/60">
+                      Chưa có dữ liệu nhóm tuổi.
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>

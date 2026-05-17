@@ -149,7 +149,6 @@ export default function AdminOverview() {
             <div className="mt-2 text-4xl font-extrabold tracking-tight">
               {typeof totalEventsOnSale === "number" ? totalEventsOnSale : 14}
             </div>
-            <div className="mt-auto pt-5 text-sm text-white/55">Đang hoạt động</div>
           </GlassCard>
         </motion.div>
 
@@ -174,7 +173,7 @@ export default function AdminOverview() {
               <div className="mt-2 text-xs text-white/55">
                 {fillRatePct == null
                   ? "Đang tải dữ liệu..."
-                  : `${seatSummary!.soldSeats} đã bán`}
+                  : `${seatSummary!.soldSeats} ghế đã bán`}
               </div>
             </div>
           </GlassCard>

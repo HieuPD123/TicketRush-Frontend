@@ -745,14 +745,6 @@ export default function CreateEventWizard() {
               <div className="flex items-center justify-end gap-3">
                 <button
                   type="button"
-                  onClick={resetAll}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white/75 transition hover:bg-white/7 hover:text-white/90"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Làm lại
-                </button>
-                <button
-                  type="button"
                   disabled={busy || !createdEvent?.id}
                   onClick={() => void handlePublish()}
                   className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-background shadow-[0_0_28px_rgba(124,58,237,0.35)] transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
