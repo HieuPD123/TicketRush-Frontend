@@ -11,6 +11,8 @@ export type EventDetailRequest = {
     type: Category,
     posterUrl: string,
     endTimeAfterStartTime: boolean,
+    longitude: number | null,
+    latitude: number | null,
 }
 
 function readMessage(payload: unknown) {

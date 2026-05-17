@@ -273,6 +273,8 @@ export default function CreateEventWizard() {
         endTime,
         type,
         posterUrl: posterUrl.trim(),
+        latitude: null,
+        longitude: null,
         endTimeAfterStartTime: Boolean(startTime && endTime && new Date(endTime).getTime() > new Date(startTime).getTime()),
       };
 

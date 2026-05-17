@@ -267,8 +267,75 @@ export default function AdminEventsList() {
     spotlightMutation.mutate(eventId);
   }
 
+  function renderSpotlightDropZone(compact = false) {
+    return (
+      <div
+        onDragEnter={(event) => {
+          event.preventDefault();
+          setIsSpotlightDropActive(true);
+        }}
+        onDragOver={(event) => {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "copy";
+          setIsSpotlightDropActive(true);
+        }}
+        onDragLeave={(event) => {
+          const nextTarget = event.relatedTarget;
+          if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
+          setIsSpotlightDropActive(false);
+        }}
+        onDrop={handleSpotlightDrop}
+        className={[
+          "flex flex-col gap-4 rounded-2xl border border-dashed border-white/20 bg-[#0E0E15]/85 p-4 sm:flex-row sm:items-center sm:justify-between",
+          compact ? "shadow-[0_18px_70px_rgba(0,0,0,0.45)]" : "",
+        ].join(" ")}
+      >
+        <div className="flex min-w-0 items-center gap-4">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-primary/30 bg-primary/15 text-primary">
+            {spotlightMutation.isPending ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Sparkles className="h-5 w-5" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <div className="font-[var(--font-display)] text-base font-semibold text-white/90">
+              Spotlight
+            </div>
+            <div className="mt-1 text-sm text-white/55">
+              {spotlightEvent
+                ? `Đang hiển thị: ${spotlightEvent.title}`
+                : "Kéo một sự kiện vào đây để hiển thị trên hero trang chủ."}
+            </div>
+          </div>
+        </div>
+
+        <div className="shrink-0 text-sm font-semibold text-white/60">
+          {spotlightMutation.isPending
+            ? "Đang cập nhật..."
+            : draggedEventId
+              ? "Thả vào đây để đặt spotlight"
+              : "Kéo event card vào đây"}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
+      {draggedEventId ? (
+        <div className="pointer-events-none fixed inset-x-4 bottom-5 z-[1000] mx-auto max-w-5xl">
+          <GlassCard
+            className={[
+              "pointer-events-auto bg-[#0E0E15]/90 p-3 shadow-[0_18px_70px_rgba(0,0,0,0.55)] transition",
+              isSpotlightDropActive ? "border-primary/50 bg-primary/20 shadow-[0_0_0_1px_rgba(124,58,237,0.30)]" : "",
+            ].join(" ")}
+          >
+            {renderSpotlightDropZone(true)}
+          </GlassCard>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="font-[var(--font-display)] text-xl font-semibold tracking-tight">
@@ -291,8 +358,8 @@ export default function AdminEventsList() {
 
       <GlassCard
         className={[
-          "p-5 transition",
-          isSpotlightDropActive ? "border-primary/50 bg-primary/10 shadow-[0_0_0_1px_rgba(124,58,237,0.30)]" : "",
+          "bg-[#0E0E15]/70 p-5 transition",
+          isSpotlightDropActive ? "border-primary/50 bg-primary/20 shadow-[0_0_0_1px_rgba(124,58,237,0.30)]" : "",
         ].join(" ")}
       >
         <div
@@ -311,7 +378,7 @@ export default function AdminEventsList() {
             setIsSpotlightDropActive(false);
           }}
           onDrop={handleSpotlightDrop}
-          className="flex flex-col gap-4 rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-4 sm:flex-row sm:items-center sm:justify-between"
+          className="flex flex-col gap-4 rounded-2xl border border-dashed border-white/20 bg-[#0E0E15]/85 p-4 sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="flex min-w-0 items-center gap-4">
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-primary/30 bg-primary/15 text-primary">
