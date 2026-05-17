@@ -27,6 +27,7 @@ export const API_ENDPOINTS = {
     trending: `${BASE_URL}/api/events/trending`,
     spotlight: `${BASE_URL}/api/events/spotlight`,
     byType: `${BASE_URL}/api/events/by-type`,
+    detail: (id: number) => `${BASE_URL}/api/events/${id}/detail`,
   },
 
   // Booking
