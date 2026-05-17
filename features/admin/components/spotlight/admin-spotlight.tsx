@@ -175,7 +175,7 @@ export default function AdminSpotlight() {
             Đưa sự kiện hot lên trang đầu.
           </div>
 
-          <div className="mt-5 space-y-3">
+          <div className="mt-5 space-y-4">
             <label className="space-y-2">
               <div className="text-xs font-semibold tracking-wide text-white/60">Event ID</div>
               <input
@@ -187,14 +187,16 @@ export default function AdminSpotlight() {
               />
             </label>
 
-            <button
-              type="button"
-              onClick={() => void handleSetSpotlight()}
-              disabled={setMutation.isPending}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-background shadow-[0_0_28px_rgba(124,58,237,0.35)] transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {setMutation.isPending ? "Đang cập nhật..." : "Đặt làm spotlight"}
-            </button>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => void handleSetSpotlight()}
+                disabled={setMutation.isPending}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-background shadow-[0_0_28px_rgba(124,58,237,0.35)] transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {setMutation.isPending ? "Đang cập nhật..." : "Đặt làm spotlight"}
+              </button>
+            </div>
           </div>
         </GlassCard>
       </div>

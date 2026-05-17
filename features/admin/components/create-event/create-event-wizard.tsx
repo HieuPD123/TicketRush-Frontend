@@ -352,7 +352,7 @@ export default function CreateEventWizard() {
             Tạo sự kiện
           </div>
           <div className="mt-1 text-sm text-white/55">
-            Hoàn thành lần lượt 4 bước để mở bán sự kiện.
+            Hoàn thành 4 bước để mở bán sự kiện.
           </div>
         </div>
 

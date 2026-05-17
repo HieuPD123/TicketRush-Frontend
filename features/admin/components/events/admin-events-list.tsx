@@ -145,7 +145,7 @@ export default function AdminEventsList() {
             Sự kiện
           </div>
           <div className="mt-1 text-sm text-white/55">
-            Quản lý sự kiện (Nháp / Đang mở bán / Đã kết thúc).
+            Quản lý sự kiện của bạn.
           </div>
         </div>
 
