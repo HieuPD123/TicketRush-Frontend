@@ -24,6 +24,7 @@ import { formatPriceVND } from "@/features/events/utils/format-price";
 import type { Seat } from "@/features/events/types";
 import { useSeatSocket } from "@/features/websocket/hooks/use-seat-socket";
 import { leaveQueue } from "@/features/queue/services/leave_queue";
+import { sendHeartBeat } from "@/features/queue/services/heartbeat_queue";
 import { useTimerToast } from "@/features/queue/hooks/use-timer-toast";
 import TimerToast from "@/features/queue/components/timer-toast";
 
@@ -164,6 +165,17 @@ export default function SeatSelectionScreen({ eventId }: SeatSelectionScreenProp
     }
   }, [searchParams, showToast]);
 
+  useEffect(() => {
+    if (!Number.isFinite(eventId) || eventId <= 0) return;
+
+    void sendHeartBeat(eventId);
+    const heartbeatId = window.setInterval(() => {
+      void sendHeartBeat(eventId);
+    }, 25_000);
+
+    return () => window.clearInterval(heartbeatId);
+  }, [eventId]);
+
   const handleContinue = () => {
     if (selectedSeats.length === 0) return;
 
@@ -171,6 +183,14 @@ export default function SeatSelectionScreen({ eventId }: SeatSelectionScreenProp
       const result = await holdSeats({ seatIds: selectedSeats.map((s) => s.id) });
 
       if (!result.ok) {
+        if (
+          result.statusCode === 403 ||
+          /NOT_IN_QUEUE|QUEUE|HANG|QUYEN|GRANTED/i.test(result.message)
+        ) {
+          router.replace(`/events/${eventId}/queue`);
+          return;
+        }
+
         alert(result.message || "Không thể giữ ghế. Vui lòng thử lại.");
         return;
       }
