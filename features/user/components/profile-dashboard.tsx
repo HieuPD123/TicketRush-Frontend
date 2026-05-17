@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { CalendarDays, Pencil, X } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,18 +11,25 @@ import ProfileSidebar from "@/features/user/components/profile-sidebar";
 import { useDateOfBirthField } from "@/features/auth/hooks/use-date-of-birth-field";
 import { ME_QUERY_KEY } from "@/features/auth/hooks/use-me";
 import { getMe } from "@/features/auth/services/me";
-import { MY_INFO_QUERY_KEY, useMyInfo } from "@/features/user/hooks/use-my-info";
+import { getMyInfo, type Info } from "@/features/user/services/get-my-info";
 import { postMyAvatar } from "@/features/user/services/post-my-avatar";
 import { postMyInfo, type NewUserInfo } from "@/features/user/services/post-my-info";
 import { getCroppedImageBlob } from "@/features/user/utils/crop-image";
 
 export default function ProfileDashboard() {
-  const { data: myInfo } = useMyInfo();
   const queryClient = useQueryClient();
-  const dateOfBirthField = useDateOfBirthField();
-  const hasInitializedRef = useRef(false);
+  const {
+    displayValue: dobDisplayValue,
+    isoValue: dobIsoValue,
+    pickerRef: dobPickerRef,
+    setFromDisplayInput: setDobFromDisplayInput,
+    setFromIso: setDobFromIso,
+    openPicker: openDobPicker,
+  } = useDateOfBirthField();
   const avatarFileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const [myInfo, setMyInfo] = useState<Info | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const avatarSrc = myInfo?.avatarUrl || "/default-avatar.svg";
 
   const [avatarEditorSrc, setAvatarEditorSrc] = useState<string | null>(null);
@@ -36,9 +43,52 @@ export default function ProfileDashboard() {
   const [dobError, setDobError] = useState<string | null>(null);
   const [saveFeedback, setSaveFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
+  const applyMyInfo = useCallback((info: Info) => {
+    setMyInfo(info);
+    setFullName(info.fullName ?? "");
+    setGender(info.gender ?? "");
+    setDobFromIso(info.dateOfBirth ?? "");
+  }, [setDobFromIso]);
+
+  const refreshMyInfo = useCallback(async () => {
+    const result = await getMyInfo();
+
+    if (!result.ok || !result.data?.result) {
+      setProfileError(result.message);
+      return null;
+    }
+
+    setProfileError(null);
+    applyMyInfo(result.data.result);
+    return result.data.result;
+  }, [applyMyInfo]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadMyInfo() {
+      const result = await getMyInfo();
+      if (ignore) return;
+
+      if (!result.ok || !result.data?.result) {
+        setProfileError(result.message);
+        return;
+      }
+
+      setProfileError(null);
+      applyMyInfo(result.data.result);
+    }
+
+    void loadMyInfo();
+
+    return () => {
+      ignore = true;
+    };
+  }, [applyMyInfo]);
+
   const saveMutation = useMutation({
     mutationFn: async (payload: NewUserInfo) => postMyInfo(payload),
-    onSuccess: (result, variables) => {
+    onSuccess: async (result) => {
       setSaveFeedback({
         type: result.ok ? "success" : "error",
         message: result.message,
@@ -47,21 +97,10 @@ export default function ProfileDashboard() {
       if (!result.ok) return;
 
       if (result.result) {
-        queryClient.setQueryData(MY_INFO_QUERY_KEY, result.result);
-      } else {
-        queryClient.setQueryData(MY_INFO_QUERY_KEY, (prev: unknown) => {
-          if (!prev || typeof prev !== "object") return prev;
-          return {
-            ...(prev as Record<string, unknown>),
-            fullName: variables.fullName,
-            dateOfBirth: variables.dateOfBirth,
-            gender: variables.gender,
-          };
-        });
+        applyMyInfo(result.result);
       }
 
-      // Ensure we re-sync with server state (source of truth).
-      queryClient.invalidateQueries({ queryKey: MY_INFO_QUERY_KEY });
+      await refreshMyInfo();
     },
   });
 
@@ -71,10 +110,10 @@ export default function ProfileDashboard() {
       if (!result.ok) return;
 
       if (result.result) {
-        queryClient.setQueryData(MY_INFO_QUERY_KEY, result.result);
+        applyMyInfo(result.result);
       }
 
-      queryClient.invalidateQueries({ queryKey: MY_INFO_QUERY_KEY });
+      await refreshMyInfo();
 
       const meResult = await getMe();
       if (meResult.ok && meResult.result) {
@@ -107,17 +146,6 @@ export default function ProfileDashboard() {
     };
   }, [avatarEditorSrc]);
 
-  useEffect(() => {
-    if (!myInfo) return;
-    if (hasInitializedRef.current) return;
-
-    setFullName(myInfo.fullName ?? "");
-    setGender(myInfo.gender ?? "");
-    dateOfBirthField.setFromIso(myInfo.dateOfBirth ?? "");
-
-    hasInitializedRef.current = true;
-  }, [dateOfBirthField, myInfo]);
-
   const joinedAtLabel = myInfo?.createdAt
     ? new Date(myInfo.createdAt).toLocaleDateString("vi-VN")
     : "--";
@@ -136,6 +164,12 @@ export default function ProfileDashboard() {
               Quản lý thông tin tài khoản của bạn.
             </p>
           </header>
+
+          {profileError ? (
+            <div className="mt-6 rounded-2xl border border-red-500/25 bg-red-500/10 p-4 text-sm text-red-200">
+              {profileError}
+            </div>
+          ) : null}
 
           <div className="mt-8 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
@@ -288,8 +322,8 @@ export default function ProfileDashboard() {
             onSubmit={async (event) => {
               event.preventDefault();
 
-              const iso = dateOfBirthField.isoValue;
-              const display = dateOfBirthField.displayValue.trim();
+              const iso = dobIsoValue;
+              const display = dobDisplayValue.trim();
 
               if (display && !iso) {
                 setDobError("Ngày sinh không hợp lệ. Vui lòng nhập theo dd/mm/yyyy.");
@@ -365,24 +399,24 @@ export default function ProfileDashboard() {
                     type="text"
                     inputMode="numeric"
                     placeholder="dd/mm/yyyy"
-                    value={dateOfBirthField.displayValue}
+                    value={dobDisplayValue}
                     onChange={(event) => {
                       setDobError(null);
-                      dateOfBirthField.setFromDisplayInput(event.currentTarget.value);
+                      setDobFromDisplayInput(event.currentTarget.value);
                     }}
                     onBlur={() => {
-                      const display = dateOfBirthField.displayValue.trim();
+                      const display = dobDisplayValue.trim();
                       if (!display) {
                         setDobError(null);
                         return;
                       }
-                      if (!dateOfBirthField.isoValue) {
+                      if (!dobIsoValue) {
                         setDobError("Ngày sinh không hợp lệ. Vui lòng nhập theo dd/mm/yyyy.");
                         return;
                       }
 
                       const todayIso = new Date().toISOString().slice(0, 10);
-                      if (dateOfBirthField.isoValue > todayIso) {
+                      if (dobIsoValue > todayIso) {
                         setDobError("Ngày sinh không hợp lệ.");
                         return;
                       }
@@ -392,13 +426,13 @@ export default function ProfileDashboard() {
                     className="h-11 w-full rounded-full border border-border bg-white/5 px-4 pr-11 text-sm text-foreground/90 outline-none transition focus:border-primary/60 focus:ring-4 focus:ring-primary/15"
                   />
                   <input
-                    ref={dateOfBirthField.pickerRef}
+                    ref={dobPickerRef}
                     name="dateOfBirth"
                     type="date"
-                    value={dateOfBirthField.isoValue}
+                    value={dobIsoValue}
                     onChange={(event) => {
                       setDobError(null);
-                      dateOfBirthField.setFromIso(event.currentTarget.value);
+                      setDobFromIso(event.currentTarget.value);
                     }}
                     tabIndex={-1}
                     aria-hidden="true"
@@ -406,7 +440,7 @@ export default function ProfileDashboard() {
                   />
                   <button
                     type="button"
-                    onClick={dateOfBirthField.openPicker}
+                    onClick={openDobPicker}
                     className="absolute right-3 top-1/2 grid h-9 w-9 -translate-y-1/2 cursor-pointer place-items-center rounded-full text-foreground/85 transition hover:bg-surface-2/70 hover:text-foreground"
                     aria-label="Chọn ngày sinh"
                   >

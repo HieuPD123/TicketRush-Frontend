@@ -1,17 +1,19 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { type DragEvent, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, RefreshCcw, Search } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ChevronDown, Loader2, RefreshCcw, Search, Sparkles } from "lucide-react";
 
 import GlassCard from "@/features/admin/components/ui/glass-card";
 import { getEvents } from "@/features/admin/services/get-events";
+import { setSpotlightEvent } from "@/features/admin/services/set-spotlight-event";
 import { CATEGORY_LABELS, type Category, type Event } from "@/features/events/types";
 
 type StatusFilter = "ALL" | Event["status"];
 
 const EMPTY_EVENTS: Event[] = [];
+const EVENT_ID_DRAG_TYPE = "application/x-ticket-rush-event-id";
 
 const STATUS_LABELS: Record<Event["status"], string> = {
   DRAFT: "Nháp",
@@ -95,10 +97,77 @@ function formatDateTimeShort(value: string) {
   }
 }
 
+function makeDragPreview(event: Event) {
+  const preview = document.createElement("div");
+  preview.style.position = "fixed";
+  preview.style.top = "-1000px";
+  preview.style.left = "-1000px";
+  preview.style.width = "220px";
+  preview.style.pointerEvents = "none";
+  preview.style.border = "1px solid rgba(255,255,255,0.16)";
+  preview.style.borderRadius = "18px";
+  preview.style.background = "rgba(14,14,21,0.94)";
+  preview.style.boxShadow = "0 18px 50px rgba(0,0,0,0.42), 0 0 0 1px rgba(124,58,237,0.26)";
+  preview.style.backdropFilter = "blur(14px)";
+  preview.style.padding = "12px";
+  preview.style.color = "white";
+
+  const row = document.createElement("div");
+  row.style.display = "flex";
+  row.style.alignItems = "center";
+  row.style.gap = "10px";
+
+  const icon = document.createElement("div");
+  icon.textContent = "✦";
+  icon.style.display = "grid";
+  icon.style.width = "36px";
+  icon.style.height = "36px";
+  icon.style.flexShrink = "0";
+  icon.style.placeItems = "center";
+  icon.style.border = "1px solid rgba(124,58,237,0.38)";
+  icon.style.borderRadius = "12px";
+  icon.style.background = "rgba(124,58,237,0.18)";
+  icon.style.color = "rgb(196,181,253)";
+  icon.style.fontSize = "18px";
+  icon.style.fontWeight = "800";
+
+  const content = document.createElement("div");
+  content.style.minWidth = "0";
+
+  const title = document.createElement("div");
+  title.textContent = event.title;
+  title.style.overflow = "hidden";
+  title.style.textOverflow = "ellipsis";
+  title.style.whiteSpace = "nowrap";
+  title.style.fontSize = "13px";
+  title.style.fontWeight = "800";
+
+  const hint = document.createElement("div");
+  hint.textContent = "Thả vào Spotlight";
+  hint.style.marginTop = "3px";
+  hint.style.fontSize = "11px";
+  hint.style.fontWeight = "700";
+  hint.style.color = "rgba(255,255,255,0.56)";
+
+  content.append(title, hint);
+  row.append(icon, content);
+  preview.append(row);
+  document.body.append(preview);
+
+  return preview;
+}
+
 export default function AdminEventsList() {
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<StatusFilter>("ALL");
   const [category, setCategory] = useState<"ALL" | Category>("ALL");
+  const [draggedEventId, setDraggedEventId] = useState<number | null>(null);
+  const [isSpotlightDropActive, setIsSpotlightDropActive] = useState(false);
+  const [spotlightFeedback, setSpotlightFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   const eventsQuery = useQuery({
     queryKey: ["admin", "events", "list"] as const,
@@ -108,6 +177,33 @@ export default function AdminEventsList() {
   });
 
   const events = eventsQuery.data?.result ?? EMPTY_EVENTS;
+  const spotlightEvent = events.find((event) => event.spotlight) ?? null;
+
+  const spotlightMutation = useMutation({
+    mutationFn: (eventId: number) => setSpotlightEvent(eventId, true),
+    onSuccess: async (_, eventId) => {
+      const event = events.find((item) => item.id === eventId);
+      setSpotlightFeedback({
+        type: "success",
+        message: event ? `${event.title} đã được đặt làm spotlight.` : "Đã cập nhật spotlight.",
+      });
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin", "events", "list"] as const }),
+        queryClient.invalidateQueries({ queryKey: ["spotlight-event"] as const }),
+      ]);
+    },
+    onError: (error) => {
+      setSpotlightFeedback({
+        type: "error",
+        message: error instanceof Error ? error.message : "Không thể đặt sự kiện làm spotlight.",
+      });
+    },
+    onSettled: () => {
+      setDraggedEventId(null);
+      setIsSpotlightDropActive(false);
+    },
+  });
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -137,6 +233,40 @@ export default function AdminEventsList() {
     })),
   ];
 
+  function handleDragStart(dragEvent: DragEvent<HTMLAnchorElement>, event: Event) {
+    dragEvent.dataTransfer.effectAllowed = "copy";
+    dragEvent.dataTransfer.setData(EVENT_ID_DRAG_TYPE, String(event.id));
+    dragEvent.dataTransfer.setData("text/plain", String(event.id));
+
+    const preview = makeDragPreview(event);
+    dragEvent.dataTransfer.setDragImage(preview, 110, 28);
+    window.setTimeout(() => preview.remove(), 0);
+
+    setDraggedEventId(event.id);
+    setSpotlightFeedback(null);
+  }
+
+  function readDraggedEventId(dragEvent: DragEvent<HTMLElement>) {
+    const raw =
+      dragEvent.dataTransfer.getData(EVENT_ID_DRAG_TYPE) ||
+      dragEvent.dataTransfer.getData("text/plain");
+    const eventId = Number(raw);
+    return Number.isFinite(eventId) && eventId > 0 ? eventId : null;
+  }
+
+  function handleSpotlightDrop(dragEvent: DragEvent<HTMLDivElement>) {
+    dragEvent.preventDefault();
+    const eventId = readDraggedEventId(dragEvent);
+
+    if (!eventId) {
+      setSpotlightFeedback({ type: "error", message: "Không đọc được eventId từ thao tác kéo thả." });
+      setIsSpotlightDropActive(false);
+      return;
+    }
+
+    spotlightMutation.mutate(eventId);
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -158,6 +288,73 @@ export default function AdminEventsList() {
           Làm mới
         </button>
       </div>
+
+      <GlassCard
+        className={[
+          "p-5 transition",
+          isSpotlightDropActive ? "border-primary/50 bg-primary/10 shadow-[0_0_0_1px_rgba(124,58,237,0.30)]" : "",
+        ].join(" ")}
+      >
+        <div
+          onDragEnter={(event) => {
+            event.preventDefault();
+            setIsSpotlightDropActive(true);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "copy";
+            setIsSpotlightDropActive(true);
+          }}
+          onDragLeave={(event) => {
+            const nextTarget = event.relatedTarget;
+            if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
+            setIsSpotlightDropActive(false);
+          }}
+          onDrop={handleSpotlightDrop}
+          className="flex flex-col gap-4 rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex min-w-0 items-center gap-4">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-primary/30 bg-primary/15 text-primary">
+              {spotlightMutation.isPending ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Sparkles className="h-5 w-5" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="font-[var(--font-display)] text-base font-semibold text-white/90">
+                Spotlight
+              </div>
+              <div className="mt-1 text-sm text-white/55">
+                {spotlightEvent
+                  ? `Đang hiển thị: ${spotlightEvent.title}`
+                  : "Kéo một sự kiện vào đây để hiển thị trên hero trang chủ."}
+              </div>
+            </div>
+          </div>
+
+          <div className="shrink-0 text-sm font-semibold text-white/60">
+            {spotlightMutation.isPending
+              ? "Đang cập nhật..."
+              : draggedEventId
+                ? "Thả vào đây để đặt spotlight"
+                : "Kéo event card vào đây"}
+          </div>
+        </div>
+
+        {spotlightFeedback ? (
+          <div
+            className={[
+              "mt-3 rounded-2xl border p-3 text-sm",
+              spotlightFeedback.type === "success"
+                ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-200"
+                : "border-red-500/25 bg-red-500/10 text-red-200",
+            ].join(" ")}
+          >
+            {spotlightFeedback.message}
+          </div>
+        ) : null}
+      </GlassCard>
 
       <GlassCard className="relative z-[50] p-6">
         <div className="isolate flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -209,7 +406,16 @@ export default function AdminEventsList() {
             <Link
               key={event.id}
               href={`/admin/events/${event.id}`}
-              className="group rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl transition hover:border-primary/30 hover:bg-white/7 hover:shadow-[0_0_0_1px_rgba(124,58,237,0.20)]"
+              draggable
+              onDragStart={(dragEvent) => handleDragStart(dragEvent, event)}
+              onDragEnd={() => {
+                setDraggedEventId(null);
+                setIsSpotlightDropActive(false);
+              }}
+              className={[
+                "group rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl transition hover:border-primary/30 hover:bg-white/7 hover:shadow-[0_0_0_1px_rgba(124,58,237,0.20)]",
+                draggedEventId === event.id ? "scale-[0.97] border-primary/40 opacity-45 ring-2 ring-primary/20" : "",
+              ].join(" ")}
             >
               <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5">
                 <div
