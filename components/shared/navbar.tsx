@@ -13,6 +13,7 @@ import {
   LogOut,
   Music,
   Search,
+  Shield,
   Theater,
   Ticket,
   Trophy,
@@ -244,25 +245,39 @@ export default function NavBar({
               </summary>
 
               <div className="absolute right-0 mt-2 w-60 overflow-hidden rounded-2xl border border-border bg-surface/85 p-1 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl">
-                <Link
-                  href="/profile"
-                  className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-foreground/80 transition hover:bg-surface-2/70 hover:text-foreground"
-                >
-                  <span className="grid h-9 w-9 place-items-center rounded-full border border-border bg-surface/60">
-                    <User className="h-4 w-4 text-foreground/75" />
-                  </span>
-                  Thông tin cá nhân
-                </Link>
+                {me.role === "ADMIN" ? (
+                  <Link
+                    href="/admin/overview"
+                    className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-foreground/80 transition hover:bg-surface-2/70 hover:text-foreground"
+                  >
+                    <span className="grid h-9 w-9 place-items-center rounded-full border border-border bg-surface/60">
+                      <Shield className="h-4 w-4 text-foreground/75" />
+                    </span>
+                    Admin Dashboard
+                  </Link>
+                ) : (
+                  <>
+                    <Link
+                      href="/profile"
+                      className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-foreground/80 transition hover:bg-surface-2/70 hover:text-foreground"
+                    >
+                      <span className="grid h-9 w-9 place-items-center rounded-full border border-border bg-surface/60">
+                        <User className="h-4 w-4 text-foreground/75" />
+                      </span>
+                      Thông tin cá nhân
+                    </Link>
 
-                <a
-                  href="/profile/tickets"
-                  className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-foreground/80 transition hover:bg-surface-2/70 hover:text-foreground"
-                >
-                  <span className="grid h-9 w-9 place-items-center rounded-full border border-border bg-surface/60">
-                    <Ticket className="h-4 w-4 text-foreground/75" />
-                  </span>
-                  Vé của tôi
-                </a>
+                    <a
+                      href="/profile/tickets"
+                      className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-foreground/80 transition hover:bg-surface-2/70 hover:text-foreground"
+                    >
+                      <span className="grid h-9 w-9 place-items-center rounded-full border border-border bg-surface/60">
+                        <Ticket className="h-4 w-4 text-foreground/75" />
+                      </span>
+                      Vé của tôi
+                    </a>
+                  </>
+                )}
 
                 <button
                   type="button"

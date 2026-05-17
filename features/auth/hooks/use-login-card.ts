@@ -89,14 +89,25 @@ export function useLoginCard() {
           return;
         }
 
+        if (!meResult.result) {
+          setFeedback({
+            type: "error",
+            message:
+              "Đăng nhập thành công nhưng không lấy được thông tin người dùng",
+          });
+          return;
+        }
+
         queryClient.setQueryData(ME_QUERY_KEY, meResult.result);
-  window.sessionStorage.removeItem(LOGIN_DRAFT_STORAGE_KEY);
-  setEmail("");
+        window.sessionStorage.removeItem(LOGIN_DRAFT_STORAGE_KEY);
+        setEmail("");
 
         form.reset();
         setShowPassword(false);
         setFeedback(null);
-        router.replace("/");
+        router.replace(
+          meResult.result.role === "ADMIN" ? "/admin/overview" : "/",
+        );
         return;
       }
 

@@ -12,6 +12,9 @@
 
   --primary: #7c3aed;
   --secondary: #2563eb;
+
+  --font-display: var(--font-be-vietnam-pro);
+  --font-body: var(--font-inter);
 }
 
 @theme inline {

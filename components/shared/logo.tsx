@@ -2,11 +2,12 @@ import Link from "next/link";
 
 type LogoProps = {
   className?: string;
+  href?: string;
 };
-export default function Logo({ className }: LogoProps) {
+export default function Logo({ className, href = "/" }: LogoProps) {
   return (
     <Link
-      href="/"
+      href={href}
       aria-label="TicketRush"
       className={
         "inline-flex select-none items-center font-extrabold tracking-tight transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20 " +

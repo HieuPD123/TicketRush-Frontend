@@ -188,7 +188,7 @@ export default function EventsDiscoveryScreen() {
                       Từ
                     </div>
                     <div className="relative mt-2">
-                      <Calendar className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/55" />
+                      <Calendar className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/55 text-white" />
                       <input
                         type="date"
                         value={events.state.dstfrom}
@@ -205,7 +205,7 @@ export default function EventsDiscoveryScreen() {
                       Đến
                     </div>
                     <div className="relative mt-2">
-                      <Calendar className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/55" />
+                      <Calendar className="text-white pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/55" />
                       <input
                         type="date"
                         value={events.state.dstto}

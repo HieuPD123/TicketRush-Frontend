@@ -21,6 +21,7 @@
     "react-easy-crop": "^5.5.7",
     "react-leaflet": "^5.0.0-rc.2",
     "react-qr-code": "^2.0.21",
+    "recharts": "^3.8.1",
     "sockjs-client": "^1.6.1"
   },
   "devDependencies": {

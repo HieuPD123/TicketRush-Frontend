@@ -28,11 +28,12 @@ function formatTime(iso: string) {
 
 function getTimeLeft(target: string) {
   const diff = new Date(target).getTime() - Date.now();
-  if (diff <= 0) return { days: 0, hours: 0, minutes: 0 };
+  if (diff <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
   const days = Math.floor(diff / 86_400_000);
   const hours = Math.floor((diff % 86_400_000) / 3_600_000);
   const minutes = Math.floor((diff % 3_600_000) / 60_000);
-  return { days, hours, minutes };
+  const seconds = Math.floor((diff % 60_000) / 1000);
+  return { days, hours, minutes, seconds };
 }
 
 /* ──────────────────────────────────────────────────────────
@@ -69,7 +70,7 @@ function SpotlightHero({ event }: { event: Event }) {
   const [timeLeft, setTimeLeft] = useState(getTimeLeft(event.startTime));
 
   useEffect(() => {
-    const id = setInterval(() => setTimeLeft(getTimeLeft(event.startTime)), 30_000);
+    const id = setInterval(() => setTimeLeft(getTimeLeft(event.startTime)), 1_000);
     return () => clearInterval(id);
   }, [event.startTime]);
 
@@ -145,6 +146,8 @@ function SpotlightHero({ event }: { event: Event }) {
               <CountUnit value={timeLeft.hours} label="Giờ" />
               <span className="mt-3 text-2xl font-bold text-foreground/30">:</span>
               <CountUnit value={timeLeft.minutes} label="Phút" />
+              <span className="mt-3 text-2xl font-bold text-foreground/30">:</span>
+              <CountUnit value={timeLeft.seconds} label="Giây" />
             </div>
           </div>
 

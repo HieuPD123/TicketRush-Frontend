@@ -39,10 +39,19 @@ export async function getMe(): Promise<GetMeResult> {
     }
     const data: ApiResponse = await res.json();
 
+    const roleRaw = (data?.result as unknown as { role?: unknown })?.role;
+    const roleUpper =
+      typeof roleRaw === "string" ? roleRaw.toUpperCase() : "CUSTOMER";
+    const roleNormalized =
+      roleUpper === "ADMIN" || roleUpper === "ROLE_ADMIN" ? "ADMIN" : "CUSTOMER";
+
     return {
-            ok: true,
-            message: data.message,
-            result: data.result,
+      ok: true,
+      message: data.message,
+      result: {
+        ...data.result,
+        role: roleNormalized,
+      },
     };
   } catch {
     return {

@@ -192,7 +192,7 @@ export default function ForgotPasswordCard() {
 
                 <div className="w-full space-y-2">
                   <label className="text-xs font-bold text-foreground/85">
-                    MÃ OTP
+                    Mã OTP
                   </label>
                   <div
                     className="flex w-full items-center justify-between gap-3"

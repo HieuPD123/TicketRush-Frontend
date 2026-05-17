@@ -70,7 +70,15 @@ export default function SeatSelectionScreen({ eventId }: SeatSelectionScreenProp
   const selectedSet = useMemo(() => new Set(selectedSeatIds), [selectedSeatIds]);
 
   // Memoize zones to prevent unnecessary re-renders
-  const zones = useMemo(() => event?.zones ?? [], [event?.zones]);
+  const zones = useMemo(() => {
+    const list = event?.zones ?? [];
+    return [...list].sort((a, b) => {
+      const ap = a.price ?? 0;
+      const bp = b.price ?? 0;
+      if (ap !== bp) return ap - bp;
+      return a.id - b.id;
+    });
+  }, [event?.zones]);
 
   // Group seats by zone dùng Map
   const zoneBlocks = useMemo(() => {
@@ -86,13 +94,15 @@ export default function SeatSelectionScreen({ eventId }: SeatSelectionScreenProp
       arr.push(seat);
     }
 
-    return zones.map((zone) => {
+    const sortedZones = [...zones].sort((a, b) => a.price - b.price);
+
+    return sortedZones.map((zone) => {
       const zoneSeats = zoneSeatsMap.get(zone.id) ?? [];
       zoneSeats.sort(sortSeat);
       return { zone, seats: zoneSeats };
     });
   }, [seats, zones]);
-
+      
   // selectedSeats dùng seatMap O(1)
   const selectedSeats = useMemo(() => {
     const result: Seat[] = [];
