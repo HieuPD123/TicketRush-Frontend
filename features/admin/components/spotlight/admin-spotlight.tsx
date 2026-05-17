@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, RefreshCcw, Sparkles } from "lucide-react";
 
 import GlassCard from "@/features/admin/components/ui/glass-card";
-import { setSpotlightEvent } from "@/features/admin/services/set-spotlight-event";
 import { getSpotlightEvent } from "@/features/events/services/get-spotlight-event";
 import type { Event } from "@/features/events/types";
 
@@ -28,10 +27,6 @@ function formatDateTimeShort(value: string) {
 }
 
 export default function AdminSpotlight() {
-  const queryClient = useQueryClient();
-  const [eventIdInput, setEventIdInput] = useState("");
-  const [localError, setLocalError] = useState<string | null>(null);
-
   const spotlightQuery = useQuery({
     queryKey: ["spotlight-event"] as const,
     queryFn: getSpotlightEvent,
@@ -49,32 +44,6 @@ export default function AdminSpotlight() {
     return candidate as Event;
   }, [spotlightQuery.data?.result]);
 
-  const setMutation = useMutation({
-    mutationFn: async (eventId: number) => {
-      return setSpotlightEvent(eventId, true);
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["spotlight-event"] as const });
-      setEventIdInput("");
-      setLocalError(null);
-    },
-  });
-
-  const handleSetSpotlight = async () => {
-    setLocalError(null);
-    const value = Number(eventIdInput.trim());
-    if (!Number.isFinite(value) || value <= 0) {
-      setLocalError("Vui lòng nhập eventId hợp lệ.");
-      return;
-    }
-
-    try {
-      await setMutation.mutateAsync(value);
-    } catch (e) {
-      setLocalError(e instanceof Error ? e.message : "Không thể đặt spotlight.");
-    }
-  };
-
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -83,7 +52,7 @@ export default function AdminSpotlight() {
             Spotlight
           </div>
           <div className="mt-1 text-sm text-white/55">
-            Chọn sự kiện để hiện thị lên hero của trang chủ.
+            Chọn sự kiện để hiển thị lên hero của trang chủ.
           </div>
         </div>
 
@@ -100,12 +69,6 @@ export default function AdminSpotlight() {
       {spotlightQuery.isError ? (
         <div className="rounded-3xl border border-red-500/25 bg-red-500/10 p-4 text-sm text-red-200">
           {(spotlightQuery.error as Error | null)?.message || "Không thể tải spotlight event."}
-        </div>
-      ) : null}
-
-      {localError ? (
-        <div className="rounded-3xl border border-red-500/25 bg-red-500/10 p-4 text-sm text-red-200">
-          {localError}
         </div>
       ) : null}
 
@@ -172,31 +135,21 @@ export default function AdminSpotlight() {
             Đổi spotlight event
           </div>
           <div className="mt-1 text-sm text-white/55">
-            Đưa sự kiện hot lên trang đầu.
+            Vào trang Sự kiện, kéo event card vào vùng Spotlight để cập nhật tự động.
           </div>
 
-          <div className="mt-5 space-y-4">
-            <label className="space-y-2">
-              <div className="text-xs font-semibold tracking-wide text-white/60">Event ID</div>
-              <input
-                inputMode="numeric"
-                value={eventIdInput}
-                onChange={(e) => setEventIdInput(e.target.value)}
-                placeholder="Nhập ID của sự kiện"
-                className="h-11 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-sm font-semibold text-white/90 outline-none transition focus:border-primary/40 focus:ring-4 focus:ring-primary/10"
-              />
-            </label>
-
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => void handleSetSpotlight()}
-                disabled={setMutation.isPending}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-background shadow-[0_0_28px_rgba(124,58,237,0.35)] transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {setMutation.isPending ? "Đang cập nhật..." : "Đặt làm spotlight"}
-              </button>
+          <div className="mt-5 rounded-3xl border border-dashed border-white/15 bg-white/[0.03] p-5">
+            <div className="flex items-center gap-3 text-sm font-semibold text-white/80">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Kéo thả event card vào mục trên cùng để đặt làm spotlight event
             </div>
+            <Link
+              href="/admin/events"
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-background shadow-[0_0_28px_rgba(124,58,237,0.35)] transition hover:opacity-95"
+            >
+              Mở danh sách sự kiện
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
         </GlassCard>
       </div>

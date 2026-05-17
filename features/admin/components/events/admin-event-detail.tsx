@@ -1,13 +1,16 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import {
   ArrowLeft,
   Armchair,
   Check,
+  ChevronDown,
+  MapPin,
   Pencil,
   ShieldAlert,
   X,
@@ -32,7 +35,22 @@ type EditableField =
   | "startTime"
   | "endTime"
   | "type"
-  | "posterUrl";
+  | "posterUrl"
+  | "coordinates";
+
+type Coordinate = {
+  latitude: number;
+  longitude: number;
+};
+
+const LocationPickerMap = dynamic(() => import("./location-picker-map"), {
+  ssr: false,
+  loading: () => (
+    <div className="grid h-full w-full place-items-center text-sm font-semibold text-white/55">
+      Đang tải bản đồ...
+    </div>
+  ),
+});
 
 const STATUS_LABELS: Record<Event["status"], string> = {
   DRAFT: "Nháp",
@@ -114,6 +132,94 @@ function toIsoFromDateTimeLocal(value: string) {
   return date.toISOString();
 }
 
+function formatNullableCoordinate(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value) ? String(value) : "null";
+}
+
+function parseCoordinateInput(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatCoordinatePairValue(
+  latitude: number | null | undefined,
+  longitude: number | null | undefined,
+) {
+  const hasLatitude = typeof latitude === "number" && Number.isFinite(latitude);
+  const hasLongitude = typeof longitude === "number" && Number.isFinite(longitude);
+  if (!hasLatitude && !hasLongitude) return "null";
+  return `(${formatNullableCoordinate(latitude)}, ${formatNullableCoordinate(longitude)})`;
+}
+
+function formatCoordinatePairInputValue(
+  latitude: number | null | undefined,
+  longitude: number | null | undefined,
+) {
+  if (latitude == null && longitude == null) return "";
+  const left = latitude == null ? "" : String(latitude);
+  const right = longitude == null ? "" : String(longitude);
+  if (!left && !right) return "";
+  return `${left}, ${right}`.trim();
+}
+
+function parseCoordinatePairInput(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return { latitude: null as number | null, longitude: null as number | null };
+
+  const normalized = trimmed.replaceAll("(", "").replaceAll(")", "");
+  const [rawLat = "", rawLng = ""] = normalized.split(",", 2).map((part) => part.trim());
+
+  return {
+    latitude: parseCoordinateInput(rawLat),
+    longitude: parseCoordinateInput(rawLng),
+  };
+}
+
+function CategoryDropdown({
+  value,
+  onChange,
+  detailsRef,
+}: {
+  value: Category;
+  onChange: (value: Category) => void;
+  detailsRef: RefObject<HTMLDetailsElement | null>;
+}) {
+  return (
+    <details ref={detailsRef} className="relative z-[80] mt-3">
+      <summary className="group flex h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-full border border-white/10 bg-white/5 px-4 text-sm font-semibold text-foreground/90 outline-none backdrop-blur-xl transition hover:bg-white/7 focus-visible:ring-4 focus-visible:ring-primary/15">
+        <span className="truncate">{CATEGORY_LABELS[value]}</span>
+        <ChevronDown className="ml-1 h-4 w-4 shrink-0 text-white/60 transition group-open:rotate-180" />
+      </summary>
+      <div className="absolute left-0 right-0 z-[999] mt-2 overflow-hidden rounded-2xl border border-white/10 bg-[#0E0E15]/85 p-1 shadow-[0_12px_40px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+        {(Object.keys(CATEGORY_LABELS) as Category[]).map((key) => {
+          const active = key === value;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => {
+                onChange(key);
+                detailsRef.current?.removeAttribute("open");
+              }}
+              className={[
+                "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm font-semibold transition",
+                active ? "bg-primary/15 text-primary" : "text-white/80 hover:bg-white/5 hover:text-white/90",
+              ].join(" ")}
+            >
+              <span className="min-w-0 truncate">{CATEGORY_LABELS[key]}</span>
+              {active ? (
+                <span className="h-2 w-2 rounded-full bg-primary shadow-[0_0_12px_rgba(124,58,237,0.65)]" />
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+    </details>
+  );
+}
+
 function buildDraft(event: Event): EventDetailRequest {
   return {
     title: event.title ?? "",
@@ -123,6 +229,8 @@ function buildDraft(event: Event): EventDetailRequest {
     endTime: event.endTime ?? "",
     type: event.type,
     posterUrl: event.posterUrl ?? "",
+    longitude: event.longitude ?? null,
+    latitude: event.latitude ?? null,
     endTimeAfterStartTime: true,
   };
 }
@@ -132,13 +240,16 @@ export default function AdminEventDetail({ eventId }: { eventId: number }) {
   const [overrides, setOverrides] = useState<Partial<EventDetailRequest>>({});
   const [editingField, setEditingField] = useState<EditableField | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [mapPickerOpen, setMapPickerOpen] = useState(false);
+  const [mapPickerCoordinate, setMapPickerCoordinate] = useState<Coordinate | null>(null);
 
   const titleRef = useRef<HTMLInputElement>(null);
   const venueRef = useRef<HTMLInputElement>(null);
   const posterRef = useRef<HTMLInputElement>(null);
+  const coordinateRef = useRef<HTMLInputElement>(null);
   const startRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLInputElement>(null);
-  const typeRef = useRef<HTMLSelectElement>(null);
+  const typeRef = useRef<HTMLDetailsElement>(null);
   const descRef = useRef<HTMLTextAreaElement>(null);
 
   const eventQueryKey = ["admin", "events", "detail", eventId] as const;
@@ -227,6 +338,7 @@ export default function AdminEventDetail({ eventId }: { eventId: number }) {
       startTime: () => startRef.current?.focus(),
       endTime: () => endRef.current?.focus(),
       type: () => typeRef.current?.focus(),
+      coordinates: () => coordinateRef.current?.focus(),
       description: () => descRef.current?.focus(),
     };
     focusMap[editingField]?.();
@@ -241,7 +353,9 @@ export default function AdminEventDetail({ eventId }: { eventId: number }) {
       draft.startTime !== baseDraft.startTime ||
       draft.endTime !== baseDraft.endTime ||
       draft.type !== baseDraft.type ||
-      draft.posterUrl !== baseDraft.posterUrl
+      draft.posterUrl !== baseDraft.posterUrl ||
+      draft.latitude !== baseDraft.latitude ||
+      draft.longitude !== baseDraft.longitude
     );
   }, [baseDraft, draft]);
 
@@ -280,6 +394,30 @@ export default function AdminEventDetail({ eventId }: { eventId: number }) {
     setOverrides({});
     setEditingField(null);
     setLocalError(null);
+  };
+
+  const openMapPicker = () => {
+    const latitude = draft?.latitude;
+    const longitude = draft?.longitude;
+    const hasCoordinate =
+      typeof latitude === "number" &&
+      Number.isFinite(latitude) &&
+      typeof longitude === "number" &&
+      Number.isFinite(longitude);
+
+    setMapPickerCoordinate(hasCoordinate ? { latitude, longitude } : null);
+    setMapPickerOpen(true);
+  };
+
+  const applyMapPickerCoordinate = () => {
+    if (!mapPickerCoordinate) return;
+    setOverrides((current) => ({
+      ...current,
+      latitude: mapPickerCoordinate.latitude,
+      longitude: mapPickerCoordinate.longitude,
+    }));
+    setEditingField("coordinates");
+    setMapPickerOpen(false);
   };
 
   const handleSave = async () => {
@@ -330,6 +468,64 @@ export default function AdminEventDetail({ eventId }: { eventId: number }) {
 
   return (
     <div className="flex flex-col gap-6">
+      {mapPickerOpen ? (
+        <div className="fixed inset-0 z-[1200] bg-black/70 px-4 py-6 backdrop-blur-sm">
+          <div className="mx-auto flex h-full max-h-[760px] max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0E0E15] shadow-[0_24px_100px_rgba(0,0,0,0.65)]">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 p-4">
+              <div>
+                <div className="font-[var(--font-display)] text-lg font-semibold tracking-tight">
+                  Chọn tọa độ sự kiện
+                </div>
+                <div className="mt-1 text-sm text-white/55">
+                  Click vào bản đồ để đặt marker vĩ độ/kinh độ.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMapPickerOpen(false)}
+                className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5 text-white/70 transition hover:bg-white/7 hover:text-white/90"
+                aria-label="Đóng bản đồ"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1">
+              <LocationPickerMap
+                coordinate={mapPickerCoordinate}
+                onChange={setMapPickerCoordinate}
+              />
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-white/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm font-semibold text-white/65">
+                {mapPickerCoordinate
+                  ? `(${mapPickerCoordinate.latitude}, ${mapPickerCoordinate.longitude})`
+                  : "Chưa chọn tọa độ"}
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => setMapPickerOpen(false)}
+                  className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white/75 transition hover:bg-white/7 hover:text-white/90"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={applyMapPickerCoordinate}
+                  disabled={!mapPickerCoordinate}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-background shadow-[0_0_28px_rgba(124,58,237,0.35)] transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <MapPin className="h-4 w-4" />
+                  Dùng tọa độ này
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <Link
@@ -483,18 +679,11 @@ export default function AdminEventDetail({ eventId }: { eventId: number }) {
                   </button>
                 </div>
                 {editingField === "type" ? (
-                  <select
-                    ref={typeRef}
+                  <CategoryDropdown
+                    detailsRef={typeRef}
                     value={(draft?.type ?? "LIVE_MUSIC") as Category}
-                    onChange={(e) => setOverrides((c) => ({ ...c, type: e.target.value as Category }))}
-                    className="mt-3 h-11 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-sm font-semibold text-white/90 outline-none transition focus:border-primary/40 focus:ring-4 focus:ring-primary/10"
-                  >
-                    {(Object.keys(CATEGORY_LABELS) as Category[]).map((key) => (
-                      <option key={key} value={key}>
-                        {CATEGORY_LABELS[key]}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(nextType) => setOverrides((current) => ({ ...current, type: nextType }))}
+                  />
                 ) : (
                   <div className="mt-3 text-sm font-semibold text-white/85">
                     {draft ? CATEGORY_LABELS[draft.type] : "—"}
@@ -579,6 +768,54 @@ export default function AdminEventDetail({ eventId }: { eventId: number }) {
                 ) : (
                   <div className="mt-3 truncate text-sm font-semibold text-white/85">
                     {draft?.posterUrl || "—"}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 sm:col-span-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-xs font-semibold tracking-wide text-white/60">Tọa độ</div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingField("coordinates")}
+                    className="rounded-xl border border-white/10 bg-white/5 p-2 text-white/70 transition hover:bg-white/7 hover:text-white/90"
+                    aria-label="Chỉnh sửa tọa độ"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {editingField === "coordinates" ? (
+                  <div className="relative mt-3">
+                    <input
+                      ref={coordinateRef}
+                      inputMode="decimal"
+                      value={formatCoordinatePairInputValue(draft?.latitude, draft?.longitude)}
+                      onChange={(e) => {
+                        const next = parseCoordinatePairInput(e.target.value);
+                        setOverrides((current) => ({
+                          ...current,
+                          latitude: next.latitude,
+                          longitude: next.longitude,
+                        }));
+                      }}
+                      placeholder="21.0285, 105.8542"
+                      className="h-11 w-full rounded-2xl border border-white/10 bg-white/5 px-4 pr-12 text-sm font-semibold text-white/90 outline-none transition focus:border-primary/40 focus:ring-4 focus:ring-primary/10"
+                    />
+                    <button
+                      type="button"
+                      onClick={openMapPicker}
+                      className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-xl text-white/65 transition hover:bg-white/10 hover:text-white/90"
+                      aria-label="Chọn trên bản đồ"
+                    >
+                      <MapPin className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-3 text-sm font-semibold text-white/85">
+                    {formatCoordinatePairValue(draft?.latitude, draft?.longitude)}
                   </div>
                 )}
               </div>

@@ -46,8 +46,8 @@ export type Event = {
     title: string;
     description: string;
     venue: string;
-    longitude: number;
-    latitude: number;
+    longitude: number | null;
+    latitude: number | null;
     startTime: string;
     endTime: string;
     posterUrl: string;
