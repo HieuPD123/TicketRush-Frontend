@@ -40,11 +40,21 @@ export const API_ENDPOINTS = {
     leave: `${BASE_URL}/api/queue/leave`,
     status: `${BASE_URL}/api/queue/status`,
     check: `${BASE_URL}/api/queue/check`,
-    heartbeat: `${WS_URL}/queue/heartbeat`,
+    heartbeat: `${BASE_URL}/queue/heartbeat`,
   },
 
   // WebSocket
   websocket: {
     url: WS_URL,
+  },
+
+  // Admin
+  admin: {
+    totalRevenue: `${BASE_URL}/api/admin/events/total-revenue`,
+    totalEventsOnSale: `${BASE_URL}/api/admin/events/on-sale-count`,
+    onSaleSeatSummary: `${BASE_URL}/api/admin/events/on-sale-seat-summary`,
+    revenueTrend: `${BASE_URL}/api/admin/events/revenue-trend`,
+    onSaleLowTickets: `${BASE_URL}/api/admin/events/on-sale-low-tickets`,
+    events: `${BASE_URL}/api/admin/events`,
   },
 };
